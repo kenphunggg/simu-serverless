@@ -1,4 +1,5 @@
 import logging
+from logger_config.logger_config import setup_logger
 from typing import List
 
 from ether.util import parse_size_string
@@ -15,6 +16,7 @@ from sim.faas import SimulatorFactory, FunctionContainer, FunctionSimulator, Fun
 from sim.faassim import Simulation
 
 logger = logging.getLogger(__name__)
+setup_logger()
 
 
 class AIFunctionSimulatorFactory(SimulatorFactory):

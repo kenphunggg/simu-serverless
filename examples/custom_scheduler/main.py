@@ -1,4 +1,5 @@
 import logging
+from logger_config.logger_config import setup_logger
 import random
 
 from skippy.core.clustercontext import ClusterContext
@@ -9,6 +10,7 @@ from sim.core import Environment
 from sim.faassim import Simulation
 
 logger = logging.getLogger(__name__)
+setup_logger()
 
 
 def main():

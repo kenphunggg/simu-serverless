@@ -1,4 +1,5 @@
 import logging
+from logger_config.logger_config import setup_logger
 
 import examples.basic.main as basic
 import sim.docker as docker
@@ -7,6 +8,7 @@ from sim.faas import FunctionSimulator, FunctionReplica, FunctionRequest, Simula
 from sim.faassim import Simulation
 
 logger = logging.getLogger(__name__)
+setup_logger()
 
 
 def main():

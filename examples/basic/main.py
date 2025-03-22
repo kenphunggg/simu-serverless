@@ -1,4 +1,6 @@
 import logging
+from logger_config.logger_config import setup_logger
+
 from typing import List
 
 import ether.scenarios.urbansensing as scenario
@@ -14,6 +16,8 @@ from sim.faassim import Simulation
 from sim.topology import Topology
 
 logger = logging.getLogger(__name__)
+setup_logger()
+
 
 
 def main():

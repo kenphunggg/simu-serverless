@@ -1,4 +1,6 @@
 import logging
+from logger_config.logger_config import setup_logger
+
 from typing import List
 
 import ether.scenarios.urbansensing as scenario
@@ -15,6 +17,7 @@ from sim.requestgen import function_trigger, constant_rps_profile, expovariate_a
 from sim.topology import Topology
 
 logger = logging.getLogger(__name__)
+setup_logger()
 
 
 def main():

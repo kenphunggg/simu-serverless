@@ -1,10 +1,13 @@
 import logging
+from logger_config.logger_config import setup_logger
 
 import examples.basic.main as basic
 from examples.custom_function_sim.main import CustomSimulatorFactory
 from sim.faassim import Simulation
 
 logger = logging.getLogger(__name__)
+setup_logger()
+
 
 
 def main():

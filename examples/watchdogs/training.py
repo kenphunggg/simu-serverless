@@ -1,10 +1,12 @@
 import logging
+from logger_config.logger_config import setup_logger
 
 from sim import docker
 from sim.core import Environment
 from sim.faas import ForkingWatchdog, FunctionReplica, FunctionRequest
 
 logger = logging.getLogger(__name__)
+setup_logger()
 
 
 class TrainingFunctionSim(ForkingWatchdog):
