@@ -2,6 +2,8 @@ import logging
 from logger_config.logger_config import setup_logger
 from typing import List
 
+from srds import ParameterizedDistribution
+
 import ether.scenarios.urbansensing as scenario
 from skippy.core.utils import parse_size_string
 
@@ -11,38 +13,30 @@ from sim.core import Environment
 from sim.docker import ImageProperties
 from sim.faas import FunctionDeployment, FunctionRequest, Function, FunctionImage, ScalingConfiguration, \
     DeploymentRanking, FunctionContainer, KubernetesResourceConfiguration
-from sim.faassim import Simulation
 from sim.topology import Topology
 
 logger = logging.getLogger(__name__)
 setup_logger()
 
-
-
-def main():
-    logging.basicConfig(level=logging.DEBUG)
-
-    # a topology holds the cluster configuration and network topology
-    topology = example_topology()
-
-    # a benchmark is a simpy process that sets up the runtime system (e.g., creates container images, deploys functions)
-    # and creates workload by simulating function requests
-    benchmark = ExampleBenchmark()
-
-    # a simulation runs until the benchmark process terminates
-    sim = Simulation(topology, benchmark)
-    sim.run()
-
-
-def example_topology() -> Topology:
+def ikukantai_topology() -> Topology:
     t = Topology()
-    scenario.UrbanSensingScenario().materialize(t)
+    '''
+    :param num_cells: the number of cells to create, e.g., the neighborhoods in a city
+    :param cell_density: the distribution describing the number of nodes in each neighborhood
+    :param cloudlet_size: a tuple describing the number of servers in each rack, and the number of racks
+    :param internet: the internet backbone that's being connected to (see `inet` package)
+    '''
+    scenario.UrbanSensingScenario(num_cells=2, # Number of region
+                                  cell_density=ParameterizedDistribution.lognorm((0.82, 2.02)),
+                                  cloudlet_size=(1,1),
+                                  internet='internet'
+                                  ).materialize(t)
     t.init_docker_registry()
 
     return t
 
 
-class ExampleBenchmark(Benchmark):
+class IkukantaiBenchmark(Benchmark):
 
     def setup(self, env: Environment):
         containers: docker.ContainerRegistry = env.container_registry
@@ -146,7 +140,3 @@ class ExampleBenchmark(Benchmark):
         )
 
         return resnet_fd
-
-
-if __name__ == '__main__':
-    main()

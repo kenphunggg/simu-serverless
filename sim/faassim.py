@@ -30,7 +30,7 @@ class Simulation:
         self.name = name
 
     def run(self):
-        logger.info('initializing simulation, benchmark: %s, topology nodes: %d',
+        logger.info('initializing simulation for ikukantai, benchmark: %s, topology nodes: %d',
                     type(self.benchmark).__name__, len(self.topology.nodes))
 
         env = self.env
