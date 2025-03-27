@@ -1,10 +1,13 @@
 import logging
 from logger_config.logger_config import setup_logger
+
 from typing import List
 
 from srds import ParameterizedDistribution
 
 import ether.scenarios.urbansensing as scenario
+import ether.scenarios.cloudregions as scenario2
+
 from skippy.core.utils import parse_size_string
 
 from sim import docker
@@ -20,17 +23,18 @@ setup_logger()
 
 def ikukantai_topology() -> Topology:
     t = Topology()
+    
+    my_regions = ["cloud-region", "edge-region"]
+    my_region_sizes = [(2, 1), (3, 1)] 
+    
+    ''' 
+    :param regions: list of region names
+    :param region_sizes: server_per_rack x racks
     '''
-    :param num_cells: the number of cells to create, e.g., the neighborhoods in a city
-    :param cell_density: the distribution describing the number of nodes in each neighborhood
-    :param cloudlet_size: a tuple describing the number of servers in each rack, and the number of racks
-    :param internet: the internet backbone that's being connected to (see `inet` package)
-    '''
-    scenario.UrbanSensingScenario(num_cells=2, # Number of region
-                                  cell_density=ParameterizedDistribution.lognorm((0.82, 2.02)),
-                                  cloudlet_size=(1,1),
-                                  internet='internet'
-                                  ).materialize(t)
+    scenario2.CloudRegionsScenario(regions=my_regions,
+                                   region_size=my_region_sizes).materialize(t)
+    
+    
     t.init_docker_registry()
 
     return t

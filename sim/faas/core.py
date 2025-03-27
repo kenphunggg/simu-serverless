@@ -184,7 +184,7 @@ class ScalingConfiguration:
     scale_min: int = 1
     scale_max: int = 20
     scale_factor: int = 1
-    scale_zero: bool = False
+    scale_zero: bool = True
 
     # average requests per second threshold for scaling
     rps_threshold: int = 20

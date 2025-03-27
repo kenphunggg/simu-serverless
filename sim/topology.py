@@ -1,3 +1,5 @@
+import logging
+
 from collections import defaultdict
 from typing import Optional
 
@@ -5,6 +7,7 @@ import ether.topology
 from ether.core import Node, Connection
 
 DockerRegistry = Node('registry')
+logger = logging.getLogger(__name__)
 
 
 class Topology(ether.topology.Topology):
@@ -20,7 +23,8 @@ class Topology(ether.topology.Topology):
         if DockerRegistry not in self.nodes:
             self.add_node(DockerRegistry)
         for node in self.nodes:
-            if isinstance(node, str) and node.startswith('internet'):
+            # if isinstance(node, str) and node.startswith('internet'):
+            if isinstance(node, str):
                 self.add_connection(Connection(node, DockerRegistry))
 
     def route_by_node_name(self, source_name: str, destination_name: str):
