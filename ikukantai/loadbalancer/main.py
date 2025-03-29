@@ -53,33 +53,35 @@ class MyFunctionSimulator(FunctionSimulator):
         nodeSource = allnode[nodeIdx]
         nodeDes = replica.node.name
         
-        latency = 0
+        delay = 0
+        jitter = 0.001
         
         if inRegion(nodeDes, cloud_region):
             if inRegion(nodeSource, cloud_region):
-                logger.warning(f"{nodeDes} From Cloud to Cloud")
-                latency = 0.01
+                # logger.warning(f"{nodeDes} From Cloud to Cloud")
+                delay = 0.01
             elif inRegion(nodeSource, edge_region):
-                logger.warning(f"{nodeDes} From Edge to Cloud")
-                latency = 0.05
+                # logger.warning(f"{nodeDes} From Edge to Cloud")
+                delay = 0.05
         elif inRegion(nodeDes, edge_region):
             if inRegion(nodeSource, edge_region):
-                logger.warning(f"{nodeDes} From Edge to Edge")
-                latency = 0.05
+                # logger.warning(f"{nodeDes} From Edge to Edge")
+                delay = 0.01
             elif inRegion(nodeSource, cloud_region):
-                logger.warning(f"{nodeDes} From Edge to Edge")
-                latency = 0.05
+                # logger.warning(f"{nodeDes} From Edge to Edge")
+                delay = 0.05
 
-        logger.info('[simtime=%.2f] invoking function %s from node %s to node %s', env.now, request, nodeSource, replica.node.name)
+        # logger.info('[simtime=%.2f] invoking function %s from node %s to node %s', env.now, request, nodeSource, replica.node.name)
 
         # for full flexibility you decide the resources used
         cpu_millis = replica.node.capacity.cpu_millis * 0.1
         env.resource_state.put_resource(replica, 'cpu', cpu_millis)
         node = replica.node
-        
 
         node.current_requests.add(request)
-
+        
+        latency = random.uniform((delay - jitter), (delay + jitter))
+        
         if replica.function.name == 'python-pi':
             if replica.node.name.startswith('rpi3'):  # those are nodes we created in basic.example_topology()
                 yield env.timeout(20 + latency)  # invoking this function takes 20 seconds on a raspberry pi
@@ -95,7 +97,7 @@ class MyFunctionSimulator(FunctionSimulator):
         # also, you have to release them at the end
         env.resource_state.remove_resource(replica, 'cpu', cpu_millis)
         node.current_requests.remove(request)
-        logger.warning('[endsimtime=%.2f] invoking function %s from node %s to node %s', env.now, request, nodeSource, replica.node.name)
+        # logger.warning('[endsimtime=%.2f] END invoking function %s from node %s to node %s', env.now, request, nodeSource, replica.node.name)
         
 
     def teardown(self, env: Environment, replica: FunctionReplica):

@@ -17,6 +17,8 @@ from sim.docker import ImageProperties
 from sim.faas import FunctionDeployment, FunctionRequest, Function, FunctionImage, ScalingConfiguration, \
     DeploymentRanking, FunctionContainer, KubernetesResourceConfiguration
 from sim.topology import Topology
+from sim.requestgen import function_trigger, constant_rps_profile, expovariate_arrival_profile
+
 
 logger = logging.getLogger(__name__)
 setup_logger()
@@ -36,6 +38,11 @@ def ikukantai_topology() -> Topology:
     
     
     t.init_docker_registry()
+    
+    # logging.warning("HELLO")
+    # logging.warning(t.get_nodes()[0])
+    # logging.warning(t.get_nodes()[1])
+    # logging.warning(t.latency(t.get_nodes()[0], t.get_nodes()[1]))
 
     return t
 
@@ -75,20 +82,28 @@ class IkukantaiBenchmark(Benchmark):
         yield env.process(env.faas.poll_available_replica('python-pi'))
         yield env.process(env.faas.poll_available_replica('resnet50-inference'))
 
-        # run workload
-        ps = []
-        # execute 10 requests in parallel
-        logger.info('executing 10 python-pi requests')
-        for i in range(10):
-            ps.append(env.process(env.faas.invoke(FunctionRequest('python-pi'))))
+        # # run workload
+        # ps = []
+        # # execute 10 requests in parallel
+        # logger.info('executing 10 python-pi requests')
+        # for i in range(10):
+        #     ps.append(env.process(env.faas.invoke(FunctionRequest('python-pi'))))
 
-        logger.info('executing 10 resnet50-inference requests')
-        for i in range(10):
-            ps.append(env.process(env.faas.invoke(FunctionRequest('resnet50-inference'))))
+        # logger.info('executing 10 resnet50-inference requests')
+        # for i in range(10):
+        #     ps.append(env.process(env.faas.invoke(FunctionRequest('resnet50-inference'))))
 
-        # wait for invocation processes to finish
-        for p in ps:
-            yield p
+        # # wait for invocation processes to finish
+        # for p in ps:
+        #     yield p
+            
+        # generate profile
+        ia_generator = expovariate_arrival_profile(constant_rps_profile(rps=20))
+
+        # run profile
+        yield from function_trigger(env, deployments[0], ia_generator, max_requests=100)
+        # yield from function_trigger(env, deployments[1], ia_generator, max_requests=100)
+
 
     def prepare_deployments(self) -> List[FunctionDeployment]:
         resnet_fd = self.prepare_resnet_inference_deployment()

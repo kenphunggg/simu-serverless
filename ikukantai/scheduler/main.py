@@ -28,11 +28,11 @@ class CustomScheduler:
         # get all available nodes in the cluster from the cluster context
         nodes = self.cluster.list_nodes()
         
-
+        # for node in nodes:
         # pick a node at random
         node = random.choice(nodes)
 
-        logger.info("selected node %s for pod %s from total of %d nodes %s", node.name, pod.name, len(nodes), nodes)
+        logger.warning("selected node %s for pod %s from total of %d nodes %s", node.name, pod.name, len(nodes), nodes)
 
         # the last two arguments of SchedulingResult (feasible_nodes, needed_images) are not needed
         return SchedulingResult(node, len(nodes), list())
