@@ -1,12 +1,15 @@
 import logging
 from logger_config.logger_config import setup_logger, helloWorld
 
-from setup.main import ikukantai_topology, IkukantaiBenchmark
+from ikukantai.setup.benchmark import IkukantaiBenchmark
+from ikukantai.setup.topology import ikukantai_topology
+
 from scheduler.main import CustomScheduler as scheduler
 from loadbalancer.main import CustomSimulatorFactory as loadBalancer
 from system.ikukantai import IkukantaiSystem
 
-from sim.faassim import Simulation
+from system.faasim import Simulation
+# from sim.faassim import Simulation
 import networkx as nx
 
 logger = logging.getLogger(__name__)

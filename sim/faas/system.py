@@ -245,7 +245,7 @@ class DefaultFaasSystem(FaasSystem):
         while not self.get_replicas(fn, FunctionState.RUNNING):
             yield self.env.timeout(interval)
 
-    def run_scheduler_worker(self):  # NOTE HOW TO RUN SCHEDULE KEN
+    def run_scheduler_worker(self):  
         env = self.env
 
         while True:

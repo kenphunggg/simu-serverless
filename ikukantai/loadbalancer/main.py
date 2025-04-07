@@ -2,10 +2,6 @@ import logging
 from logger_config.logger_config import setup_logger
 
 import random
-import time
-from datetime import datetime
-
-from setup.main import ikukantai_topology
 
 import sim.docker as docker
 from sim.core import Environment
@@ -70,8 +66,10 @@ class MyFunctionSimulator(FunctionSimulator):
             elif inRegion(nodeSource, cloud_region):
                 # logger.warning(f"{nodeDes} From Edge to Edge")
                 delay = 0.05
+        else:
+            delay = 0.01
 
-        # logger.info('[simtime=%.2f] invoking function %s from node %s to node %s', env.now, request, nodeSource, replica.node.name)
+        logger.info('[simtime=%.2f] invoking function %s from node %s to node %s', env.now, request, nodeSource, replica.node.name)
 
         # for full flexibility you decide the resources used
         cpu_millis = replica.node.capacity.cpu_millis * 0.1
@@ -81,23 +79,29 @@ class MyFunctionSimulator(FunctionSimulator):
         node.current_requests.add(request)
         
         latency = random.uniform((delay - jitter), (delay + jitter))
+        latency = 0
         
         if replica.function.name == 'python-pi':
             if replica.node.name.startswith('rpi3'):  # those are nodes we created in basic.example_topology()
                 yield env.timeout(20 + latency)  # invoking this function takes 20 seconds on a raspberry pi
+                logger.critical(f'1, {request}')
             else:
                 yield env.timeout(2 + latency)  # invoking this function takes 2 seconds on all other nodes in the cluster
+                logger.critical(f'2, {request}')
             
         elif replica.function.name == 'resnet50-inference':
             yield env.timeout(0.5 + latency)  # invoking this function takes 500 ms
+            logger.critical(f'3, {request}')
         else:
             yield env.timeout(0 + latency)
+            logger.critical(f'4, {request}')
+            
             
 
         # also, you have to release them at the end
         env.resource_state.remove_resource(replica, 'cpu', cpu_millis)
         node.current_requests.remove(request)
-        # logger.warning('[endsimtime=%.2f] END invoking function %s from node %s to node %s', env.now, request, nodeSource, replica.node.name)
+        logger.warning('[endsimtime=%.2f] END invoking function %s from node %s to node %s', env.now, request, nodeSource, replica.node.name)
         
 
     def teardown(self, env: Environment, replica: FunctionReplica):

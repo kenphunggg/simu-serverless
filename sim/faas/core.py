@@ -100,6 +100,7 @@ class FunctionImage:
         self.image = image
 
 
+# Priority on which image can have higher priority
 class DeploymentRanking:
     # TODO probably better to remove default/enable default for one image
     images: List[str]
@@ -181,7 +182,7 @@ class FunctionContainer:
 
 
 class ScalingConfiguration:
-    scale_min: int = 1
+    scale_min: int = 0
     scale_max: int = 20
     scale_factor: int = 1
     scale_zero: bool = True
