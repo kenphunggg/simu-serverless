@@ -1,6 +1,9 @@
 import logging
 from logger_config.logger_config import setup_logger
 
+from ikukantai.statemonitor.arch import MainMonitor, FunctionMonitor, PodMonitor
+from ikukantai.statemonitor.api import StateAPI
+
 from typing import List
 
 from skippy.core.utils import parse_size_string
@@ -34,44 +37,46 @@ class IkukantaiBenchmark(Benchmark):
     def run(self, env: Environment):
         # deploy functions
         deployments = self.prepare_deployment()
+        
+        main_monitor = MainMonitor()
+        logger.info("Finish adding MainMonitor to control deployments")
 
         for deployment in deployments:
-            yield from env.faas.deploy(deployment) # TODO ondoing ken
-
+            logger.critical(f"{deployment.fn.name} test")
+            fn_monitor = FunctionMonitor(function=deployment.fn, mainmonitor=main_monitor)
+            main_monitor.add_fnMonitor(fn_monitor) 
+            yield from env.faas.deploy(deployment, fn_monitor)
+                        
         # block until replicas become available (scheduling has finished and replicas have been deployed on the node)
         logger.info('waiting for replica')
+        # TODO by LAZYken: adjust value for apps used
         yield env.process(env.faas.poll_available_replica('app1'))
         yield env.process(env.faas.poll_available_replica('app2'))
         yield env.process(env.faas.poll_available_replica('app3'))
+        
+        StateAPI.to_cold(main_monitor=main_monitor, function_name='app1', pod_name='1')
 
-        # # run workload
-        ps = []
-        # execute 10 requests in parallel
-        logger.info('executing 2 python-pi requests')
-        for i in range(2):
-            ps.append(env.process(env.faas.invoke(FunctionRequest('python-pi'))))
+        # # # run workload
+        # ps = []
+        # # execute 10 requests in parallel
+        # logger.info('executing 2 app1 requests')
+        # for i in range(2):
+        #     ps.append(env.process(env.faas.invoke(FunctionRequest('app1'))))
 
-        # logger.info('executing 10 resnet50-inference requests')
-        # for i in range(10):
-        #     ps.append(env.process(env.faas.invoke(FunctionRequest('resnet50-inference'))))
-
-        # wait for invocation processes to finish
-        for p in ps:
-            yield p
-            
-        # generate profile
-        # ia_generator = expovariate_arrival_profile(constant_rps_profile(rps=20))
-        # ia_generator = constant_rps_profile(20)
-
-        # run profile
-        # yield from function_trigger(env, deployments[0], ia_generator, max_requests=10)
-        # yield from function_trigger(env, deployments[1], ia_generator, max_requests=10)
+        # # wait for invocation processes to finish
+        # for p in ps:
+        #     yield p
 
     def prepare_deployment(self):
+        # TODO by LAZYken: adjust value for apps used
         # Design time
-        app1_fn = Function(name='app1', fn_images=['app1'])
-        app2_fn = Function(name='app2', fn_images=['app2'])
-        app3_fn = Function(name='app3', fn_images=['app3'])
+        app1_image = FunctionImage('app1')
+        app2_image = FunctionImage('app2')
+        app3_image = FunctionImage('app3')
+        
+        app1_fn = Function(name='app1', fn_images=[app1_image])
+        app2_fn = Function(name='app2', fn_images=[app2_image])
+        app3_fn = Function(name='app3', fn_images=[app3_image])
         
         # Run time
         
@@ -82,27 +87,27 @@ class IkukantaiBenchmark(Benchmark):
         app2_request = KubernetesResourceConfiguration.create_from_str(cpu='100m', memory='1024Mi')
         app3_request = KubernetesResourceConfiguration.create_from_str(cpu='100m', memory='1024Mi')
         
-        app1_container = FunctionContainer(fn_image='app1', resource_config=app1_request)
-        app2_container = FunctionContainer(fn_image='app1', resource_config=app2_request)
-        app3_container = FunctionContainer(fn_image='app1', resource_config=app3_request)
+        app1_container = FunctionContainer(fn_image=app1_image, resource_config=app1_request)
+        app2_container = FunctionContainer(fn_image=app2_image, resource_config=app2_request)
+        app3_container = FunctionContainer(fn_image=app3_image, resource_config=app3_request)
         
         app1_fd = FunctionDeployment(
             fn=app1_fn,
-            fn_containers=app1_container,
+            fn_containers=[app1_container],
             scaling_config=ScalingConfiguration(),
             # deployment_ranking=DeploymentRanking()
         )
         
         app2_fd = FunctionDeployment(
             fn=app2_fn,
-            fn_containers=app2_container,
+            fn_containers=[app2_container],
             scaling_config=ScalingConfiguration(),
             # deployment_ranking=DeploymentRanking()
         )
         
         app3_fd = FunctionDeployment(
             fn=app3_fn,
-            fn_containers=app3_container,
+            fn_containers=[app3_container],
             scaling_config=ScalingConfiguration(),
             # deployment_ranking=DeploymentRanking()
         )
@@ -132,7 +137,6 @@ class SampleIkukantaiBenchmark(Benchmark):
         for name, tag_dict in containers.images.items():
             for tag, images in tag_dict.items():
                 logger.info('%s, %s, %s', name, tag, images)
-                logger.critical('hihihi')
 
     def run(self, env: Environment):
         # deploy functions

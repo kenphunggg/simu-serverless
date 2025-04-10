@@ -2,9 +2,12 @@ import logging
 import time
 from typing import Dict, List
 
+from system.autoscaler import ReinforcementLearningScaler
+from ikukantai.statemonitor.arch import FunctionMonitor
+
 from sim.faas.system import DefaultFaasSystem, simulate_function_start
 from sim.core import Environment
-from sim.faas import FunctionReplica, FunctionDeployment, FaasSystem, FunctionContainer
+from sim.faas import FunctionReplica, FunctionDeployment, FunctionContainer
 from sim.faas.scaling import FaasRequestScaler, AverageFaasRequestScaler, AverageQueueFaasRequestScaler
 from sim.faas.scaling import FaasRequestScaler
 
@@ -24,7 +27,7 @@ class IkukantaiSystem(DefaultFaasSystem):
         self.scale_by_reinforcement_learning = scale_by_reinforcement_learning
         self.reinforcement_learning_scaler: Dict[str, ReinforcementLearningScaler] = dict()
     
-    def deploy(self, fd: FunctionDeployment):
+    def deploy(self, fd: FunctionDeployment, fm: FunctionMonitor):
         if fd.name in self.functions_deployments:
             raise ValueError('function already deployed')
 
@@ -33,7 +36,7 @@ class IkukantaiSystem(DefaultFaasSystem):
         self.faas_scalers[fd.name] = FaasRequestScaler(fd, self.env)
         self.avg_faas_scalers[fd.name] = AverageFaasRequestScaler(fd, self.env)
         self.queue_faas_scalers[fd.name] = AverageQueueFaasRequestScaler(fd, self.env)
-        self.reinforcement_learning_scaler[fd.name] = ReinforcementLearningScaler(fd, self.env)
+        self.reinforcement_learning_scaler[fd.name] = ReinforcementLearningScaler(fd, fm, self.env)
         
         # current using [scale_by_requests] but do not know why
         # see [simu-serverless/ext/raith21/main.py] - line 77
@@ -140,43 +143,6 @@ class IkukantaiSystem(DefaultFaasSystem):
             del self.functions_definitions[container.image]
  
            
-class ReinforcementLearningScaler(FaasRequestScaler):
 
-    def __init__(self, fn: FunctionDeployment, env: Environment):
-        self.env = env
-        self.function_invocations = dict() 
-        self.reconcile_interval = fn.scaling_config.rps_threshold_duration # seconds the rps threshold must be violated to trigger scale up
-        self.threshold = fn.scaling_config.rps_threshold # average requests per second threshold for scaling 
-        self.alert_window = fn.scaling_config.alert_window # window over which to track the average rps <NOT SUPPORTED>
-        self.running = True
-        self.fn_name = fn.name
-        self.fn = fn
-
-    def run(self):
-        env: Environment = self.env
-        faas: FaasSystem = env.faas
-        while self.running:
-            logger.info('Invoking scheduling algorithm - reinforcement learning')
-            yield env.timeout(self.reconcile_interval)
-            if self.function_invocations.get(self.fn_name, None) is None:
-                self.function_invocations[self.fn_name] = 0
-            last_invocations = self.function_invocations.get(self.fn_name, 0)
-            current_total_invocations = env.metrics.invocations.get(self.fn_name, 0)
-            invocations = current_total_invocations - last_invocations
-            self.function_invocations[self.fn_name] += invocations
-            # TODO divide by alert window, but needs to store the invocations, such that reconcile_interval != alert_window is possible
-            config = self.fn.scaling_config
-            if (invocations / self.reconcile_interval) >= self.threshold:
-                scale = (config.scale_factor / 100) * config.scale_max
-                yield from faas.scale_up(self.fn_name, int(scale))
-                logger.debug(f'scaled up {self.fn_name} by {scale}')
-            else:
-                scale = (config.scale_factor / 100) * config.scale_max
-                yield from faas.scale_down(self.fn_name, int(scale))
-                logger.debug(f'scaled down {self.fn_name} by {scale}')
-
-    def stop(self):
-        logger.warning('Stop scheduling algorithm - reinforcement learning')
-        self.running = False 
         
         

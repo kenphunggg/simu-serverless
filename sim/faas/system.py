@@ -243,6 +243,7 @@ class DefaultFaasSystem(FaasSystem):
 
     def poll_available_replica(self, fn: str, interval=0.5):
         while not self.get_replicas(fn, FunctionState.RUNNING):
+            logger.warning(f'Wait for available replica for function {fn}')
             yield self.env.timeout(interval)
 
     def run_scheduler_worker(self):  
