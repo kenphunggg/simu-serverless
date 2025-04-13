@@ -24,9 +24,15 @@ class IkukantaiBenchmark(Benchmark):
         containers: docker.ContainerRegistry = env.container_registry
 
         # populate the global container registry with images       
-        containers.put(ImageProperties('app1', parse_size_string('56M'), arch='aarch64'))
-        containers.put(ImageProperties('app2', parse_size_string('56M'), arch='aarch64'))
-        containers.put(ImageProperties('app3', parse_size_string('56M'), arch='aarch64'))
+        # containers.put(ImageProperties('app1', parse_size_string('56M'), arch='aarch64'))
+        # containers.put(ImageProperties('app2', parse_size_string('56M'), arch='aarch64'))
+        # containers.put(ImageProperties('app3', parse_size_string('56M'), arch='aarch64'))
+        
+        # TODO by ken: i dont know why image only work with arch x86
+        containers.put(ImageProperties('app1', parse_size_string('56M'), arch='x86'))
+        containers.put(ImageProperties('app2', parse_size_string('56M'), arch='x86'))
+        containers.put(ImageProperties('app3', parse_size_string('56M'), arch='x86'))
+        
         
 
         # log all the images in the container
@@ -42,10 +48,11 @@ class IkukantaiBenchmark(Benchmark):
         logger.info("Finish adding MainMonitor to control deployments")
 
         for deployment in deployments:
-            logger.critical(f"{deployment.fn.name} test")
             fn_monitor = FunctionMonitor(function=deployment.fn, mainmonitor=main_monitor)
             main_monitor.add_fnMonitor(fn_monitor) 
-            yield from env.faas.deploy(deployment, fn_monitor)
+            yield from env.faas.deploy(deployment, main_monitor, fn_monitor)
+                 
+        # StateAPI.to_cold(main_monitor=main_monitor, function_name='app1', pod_name='1')         
                         
         # block until replicas become available (scheduling has finished and replicas have been deployed on the node)
         logger.info('waiting for replica')
@@ -54,7 +61,6 @@ class IkukantaiBenchmark(Benchmark):
         yield env.process(env.faas.poll_available_replica('app2'))
         yield env.process(env.faas.poll_available_replica('app3'))
         
-        StateAPI.to_cold(main_monitor=main_monitor, function_name='app1', pod_name='1')
 
         # # # run workload
         # ps = []

@@ -74,7 +74,7 @@ class Simulation:
         if not env.cluster: # Current use default
             env.cluster = SimulationClusterContext(env)
 
-        if not env.scheduler: # Current use default
+        if not env.scheduler: # Custom in ikukantai/scheduler/main.py
             env.scheduler = self.create_scheduler(env) # this will only choose which pod to schedule but not know when
 
         if not env.metrics_server: # Current use default
