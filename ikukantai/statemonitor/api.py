@@ -5,6 +5,8 @@ from ikukantai.statemonitor.arch import MainMonitor, FunctionMonitor, PodMonitor
 
 import sim.docker as docker
 from sim.core import Environment
+from sim.faas import FaasSystem
+
 from skippy.core.model import Node
 
 logger = logging.getLogger(__name__)
@@ -72,6 +74,7 @@ class StateAPI:
         """
         Using the image to turn the pod on
         """
+        faas: FaasSystem = env.faas
         logger.debug(f"to_warm called with env: {env}, faas: {env.faas}") # Check env and its faas
         fn_monitor = main_monitor.fn_monitor_map[function_name]
         if pod_name not in fn_monitor.podmonitor_map:
@@ -81,7 +84,7 @@ class StateAPI:
             if pod_monitor.warm:
                 logger.info(f"Changing pod '{pod_name}' of function '{function_name}' from warmdisk to warm")
                 pod_monitor = fn_monitor.podmonitor_map[pod_name]
-                # yield from env.faas.scale_up(function_name, int(1))
+                yield from faas.scale_up(function_name, int(1))
                 logger.debug(f"Scaled up {function_name} by 1")
                 pod_monitor.warm = False
                 pod_monitor.warmdisk = True
@@ -112,6 +115,8 @@ class StateAPI:
             else:
                 logger.warning("Current pod not in valid state")
         return
+    
+    
     
 
         

@@ -19,7 +19,6 @@ from sim.faas.core import FaasSystem, FunctionSimulator
 from sim.net import SafeFlow
 from sim.skippy import create_function_pod
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -242,7 +241,6 @@ class IkukantaiSystem(FaasSystem):
                     continue
                 leftover_scale = leftover_scale - reduce
             if leftover_scale > 0:
-                logging.critical(f"trigger scale up for function {fn_name}")
                 for _ in range(leftover_scale):
                     yield from self.deploy_replica(fd, fd.get_container(service.image), fd.get_containers()[index:])
                     actually_scaled += 1
@@ -266,16 +264,16 @@ class IkukantaiSystem(FaasSystem):
         while not self.get_replicas(fn, FunctionState.RUNNING):
             # logger.warning(f'Wait for available replica for function {fn}') # FIXME: uncomment
             yield self.env.timeout(interval)
-
+            
     def run_scheduler_worker(self): # NOTE HOW TO RUN SCHEDULE KEN
         env = self.env
 
         while True:
             replica: FunctionReplica
-            logger.debug(f"Schedule queue: {self.scheduler_queue.get()}")
+            # logger.critical(f"Schedule queue have {len(self.scheduler_queue.items)} items")
             replica, services = yield self.scheduler_queue.get() # wait until an item is available in [scheduler_queue] 
 
-            logger.debug('scheduling next replica %s', replica.function.name)
+            logger.critical('scheduling next replica %s', replica.function.name)
 
             # schedule the required pod
             # find a node to schedule pod
@@ -324,7 +322,6 @@ class IkukantaiSystem(FaasSystem):
         return create_function_pod(fd, fn)
 
     def create_replica(self, fd: FunctionDeployment, fn: FunctionContainer) -> FunctionReplica:
-        logger.critical(f"schedule queue: {self.scheduler_queue.get()}")
         replica = FunctionReplica()
         replica.function = fd
         replica.container = fn

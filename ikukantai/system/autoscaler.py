@@ -53,8 +53,9 @@ class ReinforcementLearningScaler(FaasRequestScaler):
             # Make pod available
             node_idx = 1
             chosen_node = self.env.cluster.list_nodes()[node_idx]
-            StateAPI.to_warm(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1', node=chosen_node)
-            yield from faas.scale_up(self.fn_name, 1)
+            env.process(StateAPI.to_warm(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1', node=chosen_node))
+            # StateAPI.to_warm(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1', node=chosen_node)
+            # yield from faas.scale_up(self.fn_name, 1)
 
 
             logger.info(f"Logging all nodes for testing: {self.env.cluster.list_nodes()}")
