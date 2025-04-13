@@ -38,7 +38,7 @@ class StateAPI:
             if pod_monitor.warm:   
                 logger.info(f"Changing pod '{pod_name}' of function '{function_name}' from warm to cold")
                 pod_monitor = fn_monitor.podmonitor_map[pod_name]
-                pod_monitor.warm = False
+                pod_monitor.warmdisk = False
                 pod_monitor.cold = True
             else:
                 logger.warning("Current pod not in valid state")
@@ -59,12 +59,12 @@ class StateAPI:
                 pod_monitor = fn_monitor.podmonitor_map[pod_name]
                 # yield from docker.pull(env, fn_monitor.function.fn_images[0].image, )
                 pod_monitor.cold = False
-                pod_monitor.warm = True
-            elif pod_monitor.warmdisk:
+                pod_monitor.warmdisk = True
+            elif pod_monitor.warm:
                 logger.info(f"Changing pod '{pod_name}' of function '{function_name}' from warm to warmdisk")
                 pod_monitor = fn_monitor.podmonitor_map[pod_name]
-                pod_monitor.warmdisk = False
-                pod_monitor.warm = True
+                pod_monitor.warm = False
+                pod_monitor.warmdisk = True
             else:
                 logger.warning("Current pod not in valid state")
         return
@@ -81,13 +81,13 @@ class StateAPI:
             logger.warning(f"Pod '{pod_name}' is not intialized")
         else:
             pod_monitor = fn_monitor.podmonitor_map[pod_name]
-            if pod_monitor.warm:
+            if pod_monitor.warmdisk:
                 logger.info(f"Changing pod '{pod_name}' of function '{function_name}' from warmdisk to warm")
                 pod_monitor = fn_monitor.podmonitor_map[pod_name]
                 yield from faas.scale_up(function_name, int(1))
                 logger.debug(f"Scaled up {function_name} by 1")
-                pod_monitor.warm = False
-                pod_monitor.warmdisk = True
+                # pod_monitor.warmdisk = False
+                # pod_monitor.warm = True
             elif pod_monitor.active:
                 logger.info(f"Changing pod '{pod_name}' of function '{function_name}' from active to warm")
                 pod_monitor = fn_monitor.podmonitor_map[pod_name]

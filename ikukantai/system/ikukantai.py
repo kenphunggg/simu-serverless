@@ -58,7 +58,9 @@ class IkukantaiSystem(FaasSystem):
         self.faas_scalers: Dict[str, FaasRequestScaler] = dict()
         self.avg_faas_scalers: Dict[str, AverageFaasRequestScaler] = dict()
         self.queue_faas_scalers: Dict[str, AverageQueueFaasRequestScaler] = dict()
-        self.reinforcement_learning_scaler: Dict[str, ReinforcementLearningScaler] = dict()
+        self.reinforcement_learning_scaler: Dict[str, ReinforcementLearningScaler] = dict()\
+            
+        self.mainmonitor: MainMonitor
 
     def get_deployments(self) -> List[FunctionDeployment]:
         return list(self.functions_deployments.values())
@@ -73,6 +75,7 @@ class IkukantaiSystem(FaasSystem):
         return [replica for replica in self.replicas[fn_name] if replica.state == state]
 
     def deploy(self, fd: FunctionDeployment, mainmonitor: MainMonitor, fm: FunctionMonitor):
+        self.mainmonitor = mainmonitor
         if fd.name in self.functions_deployments:
             raise ValueError('function already deployed')
 
@@ -280,7 +283,8 @@ class IkukantaiSystem(FaasSystem):
             self.env.metrics.log_start_schedule(replica)
             pod = replica.pod
             then = time.time()
-            result = env.scheduler.schedule(pod) # it will call [custom_scheduler] to choose which node to schedule pod
+            logger.critical(replica.fn_name)
+            result = env.scheduler.schedule(pod, self.mainmonitor) # it will call [custom_scheduler] to choose which node to schedule pod
             duration = time.time() - then
             # It will log the following line
             # Pod scheduling took 0.13 ms, and yielded SchedulingResult(suggested_host=server_0, feasible_nodes=5, needed_images=[])
@@ -365,8 +369,8 @@ def simulate_function_start(env: Environment, replica: FunctionReplica):
     sim: FunctionSimulator = replica.simulator
 
     logger.debug('deploying function %s to %s', replica.function.name, replica.node.name)
-    env.metrics.log_deploy(replica)
-    yield from sim.deploy(env, replica)
+    # env.metrics.log_deploy(replica)
+    # yield from sim.deploy(env, replica)
     replica.state = FunctionState.STARTING
     env.metrics.log_startup(replica)
     logger.debug('starting function %s on %s', replica.function.name, replica.node.name)

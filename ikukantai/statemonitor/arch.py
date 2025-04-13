@@ -51,6 +51,7 @@ class PodMonitor:
         self.active = False # receiving request
         
         self.node: Node = None
+        # self.schedule_sig = True
         
         # if isinstance(function_monitor, FunctionMonitor):
         #     function_monitor.add_podmonitor(self)

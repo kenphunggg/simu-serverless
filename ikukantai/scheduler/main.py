@@ -3,6 +3,8 @@ from logger_config.logger_config import setup_logger
 
 import random
 
+from ikukantai.statemonitor.arch import MainMonitor, FunctionMonitor, PodMonitor
+
 from skippy.core.clustercontext import ClusterContext
 from skippy.core.model import SchedulingResult, Pod
 
@@ -19,11 +21,20 @@ class CustomScheduler:
     def __init__(self, cluster: ClusterContext):
         self.cluster = cluster
 
-    def schedule(self, pod: Pod) -> SchedulingResult:
+    def schedule(self, pod: Pod, mainmonitor: MainMonitor) -> SchedulingResult:
         """
         Schedule selects a node for a Pod (in Kubernetes language). Our system assumes that Kubernetes or a similar
         platform is used as underlying runtime for the FaaS system.
         """
+
+        function: str = pod.spec.containers[0].image
+        logger.critical(f"Logging for testing for function: {function}")
+        
+        fn_monitor: FunctionMonitor = mainmonitor.fn_monitor_map[function]
+        for podmonitor in fn_monitor.podmonitor_map.values():
+            if podmonitor.warm == False and podmonitor.warmdisk == True:
+                node = podmonitor.node
+                logger.critical(f"Scheduling node: {node.name}")
 
         # get all available nodes in the cluster from the cluster context
         nodes = self.cluster.list_nodes()
