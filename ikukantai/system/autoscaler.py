@@ -58,13 +58,15 @@ class ReinforcementLearningScaler(FaasRequestScaler):
             # StateAPI.to_warmdisk(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1', node=chosen_node)
             yield env.process(
                 StateAPI.to_warmdisk(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1', node=chosen_node)
-                )
+            )
+            
+            yield env.timeout(5)
             # Change pod from cold to warmdisk
             # Download image to node
             # StateAPI.to_warm(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1', node=chosen_node)
             yield env.process(
                 StateAPI.to_warm(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1', node=chosen_node)  
-                )
+            )
                  
             self.running = False 
             logger.debug(f'Scale hanging')

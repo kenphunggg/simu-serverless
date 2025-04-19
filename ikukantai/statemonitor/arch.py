@@ -117,9 +117,8 @@ class PodMonitor:
                     
             elif new_state == "warm":
                 if self.warmdisk:
-                    yield faas.scale_up(self.function_monitor.name, int(1))
-                    self.warmdisk = False
-                    self.warm = True
+                    scaleUp = faas.scale_up(self.function_monitor.name, int(1))
+                    yield self.env.process(scaleUp)
                     logger.info(f"[Simtime={self.env.now}] Pod '{self.name}' of function {self.function_monitor.name} is reached {new_state} state")
                 elif self.active:
                     self.active = False

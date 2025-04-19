@@ -62,12 +62,12 @@ class StateAPI:
             pod_monitor = fn_monitor.podmonitor_map[pod_name]
             pod_monitor.node = node
             if pod_monitor.cold:
-                logger.debug(f"Changing pod '{pod_name}' of function '{function_name}' from cold to warmdisk")
+                logger.info(f"[Simtime={env.now}] Pod '{pod_name}' of function '{function_name}' is changing to warmdisk")
                 # pod_monitor = fn_monitor.podmonitor_map[pod_name]
                 yield pod_monitor.state_signal("warmdisk")
                 # pod_monitor.state_signal("warmdisk")
             elif pod_monitor.warm:
-                logger.debug(f"Changing pod '{pod_name}' of function '{function_name}' from warm to warmdisk")
+                logger.info(f"[Simtime={env.now}] Changing pod '{pod_name}' of function '{function_name}' is changing to warmdisk")
                 pod_monitor = fn_monitor.podmonitor_map[pod_name]
                 pod_monitor.warm = False
                 pod_monitor.warmdisk = True
@@ -80,7 +80,6 @@ class StateAPI:
         """
         Using the image to turn the pod on
         """
-        logger.critical("To warm ")
         faas: FaasSystem = env.faas
         fn_monitor = main_monitor.fn_monitor_map[function_name]
         if pod_name not in fn_monitor.podmonitor_map:
@@ -88,17 +87,16 @@ class StateAPI:
         else:
             pod_monitor = fn_monitor.podmonitor_map[pod_name]
             if pod_monitor.warmdisk:
-                logger.debug(f"Changing pod '{pod_name}' of function '{function_name}' from warmdisk to warm")
+                logger.info(f"[Simtime={env.now}] Pod '{pod_name}' of function '{function_name}' is changing to warm")
                 pod_monitor = fn_monitor.podmonitor_map[pod_name]
                 yield pod_monitor.state_signal("warm")
                 # yield from faas.scale_up(function_name, int(1))
-                
                 logger.warning(f"Scaled up function '{function_name}' by 1")
                 pod_monitor.node = node
-                # pod_monitor.warmdisk = False
-                # pod_monitor.warm = True
+                pod_monitor.warmdisk = False
+                pod_monitor.warm = True
             elif pod_monitor.active:
-                logger.debug(f"Changing pod '{pod_name}' of function '{function_name}' from active to warm")
+                logger.info(f"Pod '{pod_name}' of function '{function_name}' is changing to warm")
                 pod_monitor = fn_monitor.podmonitor_map[pod_name]
                 pod_monitor.active = False
                 pod_monitor.warmdisk = True
