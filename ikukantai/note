@@ -1,0 +1,6 @@
+- env.process(gen()): Starts a new SimPy process from a generator function.
+- yield event: Pauses the current process until the specified event occurs. 
+            This is the core mechanism for waiting and synchronization in SimPy.
+- yield from gen(): Pauses the current process and delegates execution to a sub-generator (gen). 
+            Any yield event in the sub-generator pauses execution and waits for the event. 
+            Used for code modularity within a single logical process flow.

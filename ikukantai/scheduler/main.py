@@ -28,20 +28,16 @@ class CustomScheduler:
         """
 
         function: str = pod.spec.containers[0].image
-        logger.critical(f"Logging for testing for function: {function}")
         
         fn_monitor: FunctionMonitor = mainmonitor.fn_monitor_map[function]
         for podmonitor in fn_monitor.podmonitor_map.values():
             if podmonitor.warm == False and podmonitor.warmdisk == True:
                 node = podmonitor.node
-                logger.critical(f"Scheduling node: {node.name}")
 
+        podmonitor.warmdisk = False
+        podmonitor.warm = True
         # get all available nodes in the cluster from the cluster context
         nodes = self.cluster.list_nodes()
-        
-        # for node in nodes:
-        # pick a node at random
-        node = random.choice(nodes)
 
         logger.warning("selected node %s for pod %s from total of %d nodes %s", node.name, pod.name, len(nodes), nodes)
 

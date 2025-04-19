@@ -276,14 +276,13 @@ class IkukantaiSystem(FaasSystem):
             # logger.critical(f"Schedule queue have {len(self.scheduler_queue.items)} items")
             replica, services = yield self.scheduler_queue.get() # wait until an item is available in [scheduler_queue] 
 
-            logger.critical('scheduling next replica %s', replica.function.name)
+            logger.debug('scheduling next replica %s', replica.function.name)
 
             # schedule the required pod
             # find a node to schedule pod
             self.env.metrics.log_start_schedule(replica)
             pod = replica.pod
             then = time.time()
-            logger.critical(replica.fn_name)
             result = env.scheduler.schedule(pod, self.mainmonitor) # it will call [custom_scheduler] to choose which node to schedule pod
             duration = time.time() - then
             # It will log the following line
@@ -329,6 +328,7 @@ class IkukantaiSystem(FaasSystem):
         replica = FunctionReplica()
         replica.function = fd
         replica.container = fn
+        # TODO by ken: uncomment below line
         replica.pod = self.create_pod(fd, fn)
         replica.simulator = self.env.simulator_factory.create(self.env, fn)
         return replica

@@ -38,7 +38,7 @@ class IkukantaiBenchmark(Benchmark):
         # log all the images in the container
         for name, tag_dict in containers.images.items():
             for tag, images in tag_dict.items():
-                logger.info('%s, %s, %s', name, tag, images)
+                logger.debug(f"Prepare image for image with image name: {name}, tag: {tag}, image properties: {images}")
 
     def run(self, env: Environment):
         # deploy functions

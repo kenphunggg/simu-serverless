@@ -9,6 +9,8 @@ from sim.core import Environment
 from sim.faas import FunctionDeployment, FaasSystem
 from sim.faas.scaling import FaasRequestScaler
 
+from skippy.core.model import Node
+
 logger = logging.getLogger(__name__)
 
 class ReinforcementLearningScaler(FaasRequestScaler):
@@ -35,34 +37,36 @@ class ReinforcementLearningScaler(FaasRequestScaler):
             # Pause the execution for the duration [reconcile_interval = 10s]
             yield env.timeout(self.reconcile_interval)
             
+            node_idx = 3
+            chosen_node: Node = self.env.cluster.list_nodes()[node_idx]
+            
             # Testing session
             # Log all function name (For testing)
             for name in self.main_monitor.fn_monitor_map.keys():
-                logger.info(f"Logging function name for testing: {name}")
-                
-            logger.info(f"Logging image name for testing: {self.fm.function.fn_images[0].image}")
+                logger.critical(f"Logging function name for testing: {name}")
+            logger.critical(f"Logging image name for testing: {self.fm.function.fn_images[0].image}")
+            logger.critical(f"Logging all nodes for testing: {self.env.cluster.list_nodes()}")
+            logger.critical(f"Logging current node for testing: {self.env.cluster.list_nodes()[node_idx]}")
             
             # Change pod from null to cold state
-            StateAPI.to_cold(main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1')
+            StateAPI.to_cold(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1')
+            # yield env.process(StateAPI.to_cold(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1'))
             
-            # Change pod from cold to warmdisk
-            # Download image to node
-            StateAPI.to_warmdisk(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1')
             
             # Change pod from warmdisk to warm
             # Make pod available
-            node_idx = 1
-            chosen_node = self.env.cluster.list_nodes()[node_idx]
-            env.process(StateAPI.to_warm(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1', node=chosen_node))
+            # StateAPI.to_warmdisk(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1', node=chosen_node)
+            yield env.process(
+                StateAPI.to_warmdisk(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1', node=chosen_node)
+                )
+            # Change pod from cold to warmdisk
+            # Download image to node
             # StateAPI.to_warm(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1', node=chosen_node)
-            # yield from faas.scale_up(self.fn_name, 1)
-
-
-            logger.info(f"Logging all nodes for testing: {self.env.cluster.list_nodes()}")
-            logger.info(f"Logging all nodes for testing: {self.env.cluster.list_nodes()[0]}")
-            
+            yield env.process(
+                StateAPI.to_warm(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1', node=chosen_node)  
+                )
+                 
             self.running = False 
-            # yield from faas.scale_up(self.fn_name, int(0))
             logger.debug(f'Scale hanging')
             
 

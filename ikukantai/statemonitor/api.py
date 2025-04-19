@@ -3,9 +3,13 @@ from logger_config.logger_config import setup_logger
 
 from ikukantai.statemonitor.arch import MainMonitor, FunctionMonitor, PodMonitor
 
-import sim.docker as docker
 from sim.core import Environment
 from sim.faas import FaasSystem
+from sim.topology import DockerRegistry
+from sim.net import SafeFlow
+
+from ether.core import Node as EtherNode
+
 
 from skippy.core.model import Node
 
@@ -24,19 +28,20 @@ class StateAPI:
         return
 
     @staticmethod
-    def to_cold(main_monitor:MainMonitor, function_name:str, pod_name:str):
+    def to_cold(env: Environment, main_monitor:MainMonitor, function_name:str, pod_name:str):
         """
         Initializing an identification for pod
         """
         # Create new instance with name pod_name
         fn_monitor = main_monitor.fn_monitor_map[function_name]
         if pod_name not in fn_monitor.podmonitor_map:
-            logger.info(f"Changing pod '{pod_name}' of function '{function_name}' from null to cold")
-            fn_monitor.add_podmonitor(name=pod_name)
+            logger.info(f"[Simtime={env.now}] Pod '{pod_name}' of function {fn_monitor.name} is changing to cold state")
+            fn_monitor.add_podmonitor(env=env, name=pod_name)
+            # logger.info(f"[Simtime={env.now}] Pod '{pod_name}' of function {fn_monitor.name} reached to cold state")
         else:
             pod_monitor = fn_monitor.podmonitor_map[pod_name]
             if pod_monitor.warm:   
-                logger.info(f"Changing pod '{pod_name}' of function '{function_name}' from warm to cold")
+                logger.debug(f"Changing pod '{pod_name}' of function '{function_name}' from warm to cold")
                 pod_monitor = fn_monitor.podmonitor_map[pod_name]
                 pod_monitor.warmdisk = False
                 pod_monitor.cold = True
@@ -44,58 +49,61 @@ class StateAPI:
                 logger.warning("Current pod not in valid state")
     
     @staticmethod
-    def to_warmdisk(env: Environment, main_monitor: MainMonitor, function_name: str, pod_name: str):
+    def to_warmdisk(env: Environment, main_monitor: MainMonitor, function_name: str, pod_name: str, node: Node):
         """
         Downloading image for pod
         """
-        logger.debug(f"to_warmdisk called with env: {env}, faas: {env.faas}") # Check env and its faas
+        # logger.critical("To warmdisk")
+        faas: FaasSystem = env.faas
         fn_monitor = main_monitor.fn_monitor_map[function_name]
         if pod_name not in fn_monitor.podmonitor_map:
             logger.warning(f"Pod '{pod_name}' is not intialized")
         else:
             pod_monitor = fn_monitor.podmonitor_map[pod_name]
+            pod_monitor.node = node
             if pod_monitor.cold:
-                logger.info(f"Changing pod '{pod_name}' of function '{function_name}' from cold to warmdisk")
-                pod_monitor = fn_monitor.podmonitor_map[pod_name]
-                # yield from docker.pull(env, fn_monitor.function.fn_images[0].image, )
-                pod_monitor.cold = False
-                pod_monitor.warmdisk = True
+                logger.debug(f"Changing pod '{pod_name}' of function '{function_name}' from cold to warmdisk")
+                # pod_monitor = fn_monitor.podmonitor_map[pod_name]
+                yield pod_monitor.state_signal("warmdisk")
+                # pod_monitor.state_signal("warmdisk")
             elif pod_monitor.warm:
-                logger.info(f"Changing pod '{pod_name}' of function '{function_name}' from warm to warmdisk")
+                logger.debug(f"Changing pod '{pod_name}' of function '{function_name}' from warm to warmdisk")
                 pod_monitor = fn_monitor.podmonitor_map[pod_name]
                 pod_monitor.warm = False
                 pod_monitor.warmdisk = True
             else:
                 logger.warning("Current pod not in valid state")
         return
-    
+           
     @staticmethod
     def to_warm(env: Environment, main_monitor: MainMonitor, function_name: str, pod_name: str, node: Node):
         """
         Using the image to turn the pod on
         """
+        logger.critical("To warm ")
         faas: FaasSystem = env.faas
-        logger.debug(f"to_warm called with env: {env}, faas: {env.faas}") # Check env and its faas
         fn_monitor = main_monitor.fn_monitor_map[function_name]
         if pod_name not in fn_monitor.podmonitor_map:
             logger.warning(f"Pod '{pod_name}' is not intialized")
         else:
             pod_monitor = fn_monitor.podmonitor_map[pod_name]
             if pod_monitor.warmdisk:
-                logger.info(f"Changing pod '{pod_name}' of function '{function_name}' from warmdisk to warm")
+                logger.debug(f"Changing pod '{pod_name}' of function '{function_name}' from warmdisk to warm")
                 pod_monitor = fn_monitor.podmonitor_map[pod_name]
-                yield from faas.scale_up(function_name, int(1))
-                logger.debug(f"Scaled up {function_name} by 1")
+                yield pod_monitor.state_signal("warm")
+                # yield from faas.scale_up(function_name, int(1))
+                
+                logger.warning(f"Scaled up function '{function_name}' by 1")
+                pod_monitor.node = node
                 # pod_monitor.warmdisk = False
                 # pod_monitor.warm = True
             elif pod_monitor.active:
-                logger.info(f"Changing pod '{pod_name}' of function '{function_name}' from active to warm")
+                logger.debug(f"Changing pod '{pod_name}' of function '{function_name}' from active to warm")
                 pod_monitor = fn_monitor.podmonitor_map[pod_name]
                 pod_monitor.active = False
                 pod_monitor.warmdisk = True
             else:
-                logger.warning("Current pod not in valid state")
-        return
+                logger.warning("Current pod not in valid state ")
     
     @staticmethod
     def to_active(main_monitor:MainMonitor, function_name:str, pod_name: str, node: Node):
@@ -115,7 +123,124 @@ class StateAPI:
             else:
                 logger.warning("Current pod not in valid state")
         return
-    
+
+
+def to_warm_process(env: Environment, main_monitor: MainMonitor, function_name: str, pod_name: str, node: Node):
+        """
+        Using the image to turn the pod on
+        """
+        faas: FaasSystem = env.faas
+        fn_monitor = main_monitor.fn_monitor_map[function_name]
+        if pod_name not in fn_monitor.podmonitor_map:
+            logger.warning(f"Pod '{pod_name}' is not intialized")
+        else:
+            pod_monitor = fn_monitor.podmonitor_map[pod_name]
+            if pod_monitor.warmdisk:
+                logger.debug(f"Changing pod '{pod_name}' of function '{function_name}' from warmdisk to warm")
+                pod_monitor = fn_monitor.podmonitor_map[pod_name]
+                
+                yield from faas.scale_up(function_name, int(1))
+                logger.warning(f"Scaled up function '{function_name}' by 1")
+                
+                pod_monitor.node = node
+                # pod_monitor.warmdisk = False
+                # pod_monitor.warm = True
+            elif pod_monitor.active:
+                logger.debug(f"Changing pod '{pod_name}' of function '{function_name}' from active to warm")
+                pod_monitor = fn_monitor.podmonitor_map[pod_name]
+                pod_monitor.active = False
+                pod_monitor.warmdisk = True
+            else:
+                logger.warning("Current pod not in valid state")
+        return
+ 
+def to_warmdisk_process(env: Environment, main_monitor: MainMonitor, function_name: str, pod_name: str, node: Node):
+        """
+        Downloading image for pod
+        """
+        logger.critical("To warmdisk")
+        faas: FaasSystem = env.faas
+        fn_monitor = main_monitor.fn_monitor_map[function_name]
+        if pod_name not in fn_monitor.podmonitor_map:
+            logger.warning(f"Pod '{pod_name}' is not intialized")
+        else:
+            pod_monitor = fn_monitor.podmonitor_map[pod_name]
+            if pod_monitor.cold:
+                logger.debug(f"Changing pod '{pod_name}' of function '{function_name}' from cold to warmdisk")
+                pod_monitor = fn_monitor.podmonitor_map[pod_name]
+                
+                # pull_proc = env.process(docker_pull(env, fn_monitor.function.fn_images[0].image, env.get_node_state(node.name).ether_node))
+                # yield pull_proc
+            
+                # TEST
+                # scale_up = yield from faas.scale_up(function_name, int(1))
+                yield from faas.scale_up(function_name, int(1))
+                
+                yield from docker_pull(env, fn_monitor.function.fn_images[0].image, env.get_node_state(node.name).ether_node)
+                # env.process(scale_up)
+                
+                # pull_proc = env.process(docker_pull(env, fn_monitor.function.fn_images[0].image, env.get_node_state(node.name).ether_node))
+            
+                logger.critical("ahihi")
+                
+                pod_monitor.cold = False
+                pod_monitor.warmdisk = True
+            elif pod_monitor.warm:
+                logger.debug(f"Changing pod '{pod_name}' of function '{function_name}' from warm to warmdisk")
+                pod_monitor = fn_monitor.podmonitor_map[pod_name]
+                pod_monitor.warm = False
+                pod_monitor.warmdisk = True
+            else:
+                logger.warning("Current pod not in valid state")
+        return 
+       
+def docker_pull(env: Environment, image_str: str, node: EtherNode):
+    """
+    Simulate a docker pull command of the given image on the given node.
+
+    :param env: the simulation environment
+    :param image_str: the name of the image (<repository[:tag]>)
+    :param node: the node on which to run the pull command
+    :return: a simpy process (a generator)
+    """
+    started = env.now
+    # TODO: there's a lot of potential to improve fidelity here: consider image layers, simulate extraction time, etc.
+    #  e.g., docker pull on a 13MB container takes about 5 seconds. the simulated time at 120 MBit/sec would be <1s
+
+    # find the image in the registry with the node's architecture
+    # images = env.container_registry.find(image_str, arch=node.arch)
+    images = env.container_registry.find(image_str, arch="x86")
+    if not images:
+        raise ValueError('image not in registry: %s arch=%s' % (image_str, "x86"))
+    image = images[0]
+
+    node_state = env.get_node_state(node.name)
+    if node_state:
+        if image in node_state.docker_images:
+            return
+        else:
+            node_state.docker_images.add(image)
+
+    size = image.size
+
+    if size <= 0:
+        return
+
+    # # FIXME: crude simulation of layer sharing (90% across images is shared)
+    # num_images = len(env.cluster.images_on_nodes[node.name]) - 1
+    # if num_images > 0:
+    #     size = size * 0.1
+
+    route = env.topology.route(DockerRegistry, node)
+    flow = SafeFlow(env, size, route)
+
+    yield flow.start()
+
+    # for hop in route.hops:
+    #     env.metrics.log_network(size, 'docker_pull', hop)
+    env.metrics.log_flow(size, env.now - started, route.source, route.destination, 'docker_pull')
+    logger.warning(f"Finish docker pull for image '{image.name}' at node {node.name}")
+
     
     
 
