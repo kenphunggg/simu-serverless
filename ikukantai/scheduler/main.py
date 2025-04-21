@@ -29,23 +29,15 @@ class CustomScheduler:
 
         function: str = pod.spec.containers[0].image
         
-        logger.critical(function)
         
         fn_monitor: FunctionMonitor = mainmonitor.fn_monitor_map[function]
         for podmonitor in fn_monitor.podmonitor_map.values():
-            if podmonitor.warm == False and podmonitor.warmdisk == True:
+            if podmonitor.warmdisk == True:
                 node = podmonitor.node
-                logger.critical(node)
-            else:
-                logger.critical("No node")
-
-        podmonitor.warmdisk = False
-        podmonitor.warm = True
+                
         # get all available nodes in the cluster from the cluster context
         nodes = self.cluster.list_nodes()
         
-        logger.critical(node.name)
-
         logger.warning("selected node %s for pod %s from total of %d nodes %s", node.name, pod.name, len(nodes), nodes)
 
         # the last two arguments of SchedulingResult (feasible_nodes, needed_images) are not needed

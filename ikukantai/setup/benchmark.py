@@ -61,6 +61,8 @@ class IkukantaiBenchmark(Benchmark):
         yield env.process(env.faas.poll_available_replica('app2'))
         yield env.process(env.faas.poll_available_replica('app3'))
         
+        yield env.timeout(100)
+        
 
         # # # run workload
         # ps = []

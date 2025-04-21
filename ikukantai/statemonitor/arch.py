@@ -69,11 +69,22 @@ class PodMonitor:
         self.lifecycle_process = env.process(self.run_pod_lifecircle())
         
         logger.info(f"[Simtime={self.env.now}] Pod '{self.name}' of function {self.function_monitor.name} reached cold state")
-        
+    
+    def get_current_state(self):
+        if self.null:
+            return "null"
+        elif self.cold:
+            return "cold"
+        elif self.warm:
+            return "warm"
+        elif self.warmdisk:
+            return "warmdisk"
+        elif self.active:
+            return "active"
+      
     def state_signal(self, new_state):
         if self.lifecycle_process is None or not self.lifecycle_process.is_alive:
             logger.warning(f"[Simtime={self.env.now}] Pod {self.name} of function {self.function_monitor.name}: Cannot send new state signal")
-            # if False: yield
             return self.env.timeout(0)
         
         logger.debug(f"Receiving a state signal '{new_state}' pod {self.name} of function {self.function_monitor.name}")
@@ -96,7 +107,7 @@ class PodMonitor:
             
             logger.critical(f"Pod '{self.name}': Dequeued '{new_state}'. Current Flags: C={self.cold}, W={self.warm}, WD={self.warmdisk}, A={self.active}")
             
-            logger.info(f"[Simtime={self.env.now}] Pod '{self.name}' of function {self.function_monitor.name} is changing to {new_state} state")
+            # logger.info(f"[Simtime={self.env.now}] Pod '{self.name}' of function {self.function_monitor.name} is changing to {new_state} state")
             
             # --- Change to warm state ---
             if new_state == "warmdisk": 
@@ -119,6 +130,14 @@ class PodMonitor:
                 if self.warmdisk:
                     scaleUp = faas.scale_up(self.function_monitor.name, int(1))
                     yield self.env.process(scaleUp)
+                    
+                    # FIXME by Ken: if multiple apps trigger scaleup the same time, 
+                    # it may cause state flag change before scaleUp finish
+                    # wait 0.001s may solve this 
+                    yield self.env.timeout(0.001) 
+                    
+                    self.warmdisk = False
+                    self.warm = True
                     logger.info(f"[Simtime={self.env.now}] Pod '{self.name}' of function {self.function_monitor.name} is reached {new_state} state")
                 elif self.active:
                     self.active = False

@@ -58,7 +58,7 @@ class IkukantaiSystem(FaasSystem):
         self.faas_scalers: Dict[str, FaasRequestScaler] = dict()
         self.avg_faas_scalers: Dict[str, AverageFaasRequestScaler] = dict()
         self.queue_faas_scalers: Dict[str, AverageQueueFaasRequestScaler] = dict()
-        self.reinforcement_learning_scaler: Dict[str, ReinforcementLearningScaler] = dict()\
+        self.reinforcement_learning_scaler: Dict[str, ReinforcementLearningScaler] = dict()
             
         self.mainmonitor: MainMonitor
 
@@ -273,7 +273,6 @@ class IkukantaiSystem(FaasSystem):
 
         while True:
             replica: FunctionReplica
-            # logger.critical(f"Schedule queue have {len(self.scheduler_queue.items)} items")
             replica, services = yield self.scheduler_queue.get() # wait until an item is available in [scheduler_queue] 
 
             logger.debug('scheduling next replica %s', replica.function.name)
@@ -328,7 +327,6 @@ class IkukantaiSystem(FaasSystem):
         replica = FunctionReplica()
         replica.function = fd
         replica.container = fn
-        # TODO by ken: uncomment below line
         replica.pod = self.create_pod(fd, fn)
         replica.simulator = self.env.simulator_factory.create(self.env, fn)
         return replica
