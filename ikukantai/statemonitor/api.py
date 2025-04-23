@@ -66,10 +66,12 @@ class StateAPI:
                 yield pod_monitor.state_signal("warmdisk")
                 # pod_monitor.state_signal("warmdisk")
             elif pod_monitor.warm:
-                logger.info(f"[Simtime={env.now}] Changing pod '{pod_name}' of function '{function_name}' is changing to warmdisk state")
+                logger.info(f"[Simtime={env.now}] Changing pod '{pod_name}' of function '{function_name}' is changing to warmdisk state hihi")
                 pod_monitor = fn_monitor.podmonitor_map[pod_name]
-                pod_monitor.warm = False
-                pod_monitor.warmdisk = True
+                yield pod_monitor.state_signal("warmdisk")
+                yield env.timeout(0.001)
+                # pod_monitor.warm = False
+                # pod_monitor.warmdisk = True
             else:
                 logger.warning("Current pod not in valid state")
         return

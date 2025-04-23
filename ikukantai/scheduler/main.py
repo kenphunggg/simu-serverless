@@ -34,6 +34,7 @@ class CustomScheduler:
         for podmonitor in fn_monitor.podmonitor_map.values():
             if podmonitor.warmdisk == True:
                 node = podmonitor.node
+                node.pods.append(pod)  # FIXME by ken: this added by me for fixing bug when scale down
                 
         # get all available nodes in the cluster from the cluster context
         nodes = self.cluster.list_nodes()

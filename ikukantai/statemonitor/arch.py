@@ -4,7 +4,8 @@ import simpy
 
 from logger_config.logger_config import setup_logger
 
-from sim.faas import Function, FaasSystem
+from sim.faas import Function, FaasSystem, FunctionReplica
+from sim.faas.core import FunctionState
 from sim.core import Environment
 from sim.topology import DockerRegistry
 from sim.net import SafeFlow
@@ -120,12 +121,33 @@ class PodMonitor:
                     self.warmdisk = True
                     logger.info(f"[Simtime={self.env.now}] Pod '{self.name}' of function {self.function_monitor.name} is reached {new_state} state")
                 elif self.warm:
-                    logger.debug(f"Changing pod '{self.name}' of function '{self.function_monitor.name}' from warm to warmdisk")
+                    # logger.debug(f"Changing pod '{self.name}' of function '{self.function_monitor.name}' from warm to warmdisk")
+                    faas: FaasSystem = self.env.faas
+                    replicas: List[FunctionReplica] = faas.get_replicas(fn_name=self.function_monitor.name)
+                    
+                    logger.critical(f"inside {replicas}")
+                    
+                    found_rep = False
+                    for replica in replicas:
+                        if replica.node.skippy_node == self.node and replica.state == FunctionState.RUNNING:
+                            chosen_replica = replica
+                            found_rep = True
+                            break
+                    if found_rep:
+                        logger.critical(f"chosen: {chosen_replica}")
+                        faas: FaasSystem = self.env.faas
+                        yield self.env.process(faas.scale_down(self.function_monitor.name, int(1)))
+                    else:
+                        logger.critical("Not found rep")
+                        
                     self.warm = False
                     self.warmdisk = True
+                    logger.info(f"[Simtime={self.env.now}] Pod '{self.name}' of function {self.function_monitor.name} is reached {new_state} state")
                 else:
-                    logger.warning("Current pod not in valid state ")
+                    logger.warning(self.get_current_state())
+                    logger.warning("Current pod not in valid state")
                     
+            # --- Change to warm state ---
             elif new_state == "warm":
                 if self.warmdisk:
                     scaleUp = faas.scale_up(self.function_monitor.name, int(1))

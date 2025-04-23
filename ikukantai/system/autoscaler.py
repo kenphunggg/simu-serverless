@@ -14,6 +14,13 @@ from skippy.core.model import Node
 logger = logging.getLogger(__name__)
 
 class ReinforcementLearningScaler(FaasRequestScaler):
+    """
+    I have implemented APIs for managing pod's lifecycle
+    To implement reinforcement learning algorithm, just use APIs as below
+    NOTE by ken: after invoking API, use [yield env.timeout(delay)] to wait API to finish
+    if not, it will not reach desired state as we want
+    i will implement machanism for warning if it not reached desired state in next few days
+    """
 
     def __init__(self, fn: FunctionDeployment, mainmonitor: MainMonitor, fm: FunctionMonitor, env: Environment):
         self.env = env
@@ -57,25 +64,35 @@ class ReinforcementLearningScaler(FaasRequestScaler):
                 
                 # Change pod from warmdisk to warm
                 # Make pod available
-                # StateAPI.to_warmdisk(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1', node=chosen_node)
+                yield env.process(
+                    StateAPI.to_warmdisk(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1', node=chosen_node)
+                )
+                yield env.timeout(10)
+                
+                # Change pod from cold to warmdisk
+                # Download image to node
+                yield env.process(
+                    StateAPI.to_warm(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1', node=chosen_node)  
+                )
+                yield env.timeout(50)
+                
+                
+                replicas = faas.get_replicas(fn_name=self.fn_name)
+                logger.critical(f"lenB: {len(faas.get_replicas(fn_name=self.fn_name))}")
+                
+                for replica in replicas:
+                    # replica = replicas[0]
+                    logger.critical(f"replicas of function {self.fn_name}: {replica} | {replica.state} | {replica.node.name} | {replica.pod.name} | {replica.function.name}")
+
+                
                 yield env.process(
                     StateAPI.to_warmdisk(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1', node=chosen_node)
                 )
                 
-                yield env.timeout(5)
-                # Change pod from cold to warmdisk
-                # Download image to node
-                # StateAPI.to_warm(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1', node=chosen_node)
-                yield env.process(
-                    StateAPI.to_warm(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1', node=chosen_node)  
-                )
-                
-                yield env.timeout(15)
-                
-                replicas = faas.get_replicas(fn_name=self.fn_name)
-                if len(replicas) > 0:
-                    replica = replicas[0]
-                    logger.critical(f"replicas of function {self.fn_name}: {replica} | {replica.state}")
+
+                logger.critical(f"lenA: {len(faas.get_replicas(fn_name=self.fn_name))}")
+                                
+                logger.critical("tesy")
                 
                 
                 

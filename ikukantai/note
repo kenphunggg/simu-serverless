@@ -4,3 +4,11 @@
 - yield from gen(): Pauses the current process and delegates execution to a sub-generator (gen). 
             Any yield event in the sub-generator pauses execution and waits for the event. 
             Used for code modularity within a single logical process flow.
+
+- check bug when scale_up/down
+---- when scale_up, check if the pod have turn into running state
+
+- fix asynchronous in assign "node" in StateApi
+- fix multiple identification in PodMonitor
+
+- fix state flag when changing between states - current fixxed yield time between states

@@ -184,7 +184,10 @@ class IkukantaiSystem(FaasSystem):
         replica_count = len(self.get_replicas(fn_name, FunctionState.RUNNING))
         if replica_count == 0:
             return
-        replica_count -= remove
+        
+        # NOTE by Ken: Default uncommented below
+        # replica_count -= remove
+        
         if replica_count <= 0:
             remove = remove + replica_count
 
@@ -192,7 +195,10 @@ class IkukantaiSystem(FaasSystem):
         if self.replica_count.get(fn_name, 0) - remove < scale_min:
             remove = self.replica_count.get(fn_name, 0) - scale_min
 
-        if replica_count - remove <= 0 or remove == 0:
+        
+        # TODO by Ken: default is the below uncommented
+        # if replica_count - remove <= 0 or remove == 0:
+        if replica_count - remove < 0 or remove == 0:
             return
 
         logger.info(f'scale down {fn_name} by {remove}')
@@ -205,6 +211,7 @@ class IkukantaiSystem(FaasSystem):
     def choose_replicas_to_remove(self, fn_name: str, n: int):
         # TODO implement more sophisticated, currently just picks last ones deployed
         running_replicas = self.get_replicas(fn_name, FunctionState.RUNNING)
+        chosen_replicas = running_replicas[0]
         return running_replicas[len(running_replicas) - n:]
 
     def scale_up(self, fn_name: str, replicas: int):
@@ -268,7 +275,7 @@ class IkukantaiSystem(FaasSystem):
             # logger.warning(f'Wait for available replica for function {fn}') # FIXME: uncomment
             yield self.env.timeout(interval)
             
-    def run_scheduler_worker(self): # NOTE HOW TO RUN SCHEDULE KEN
+    def run_scheduler_worker(self): 
         env = self.env
 
         while True:
