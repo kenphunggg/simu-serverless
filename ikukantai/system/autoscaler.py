@@ -58,43 +58,44 @@ class ReinforcementLearningScaler(FaasRequestScaler):
             # logger.critical(f"Logging current node for testing: {self.env.cluster.list_nodes()[node_idx]}")
             if self.test:
                 # Change pod from null to cold state
-                StateAPI.to_cold(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1')
-                # yield env.process(StateAPI.to_cold(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1'))
+                yield env.process(
+                    StateAPI.to_cold(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1')
+                )
                 
-                
-                # Change pod from warmdisk to warm
-                # Make pod available
+                # Change pod from cold to warmisk state
+                # Download image to node
                 yield env.process(
                     StateAPI.to_warmdisk(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1', node=chosen_node)
                 )
                 yield env.timeout(10)
                 
-                # Change pod from cold to warmdisk
-                # Download image to node
+                # Change pod from warmdisk to warm
+                # Make pod available
                 yield env.process(
                     StateAPI.to_warm(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1', node=chosen_node)  
                 )
-                yield env.timeout(50)
+                yield env.timeout(20)
                 
-                
-                replicas = faas.get_replicas(fn_name=self.fn_name)
-                logger.critical(f"lenB: {len(faas.get_replicas(fn_name=self.fn_name))}")
-                
-                for replica in replicas:
-                    # replica = replicas[0]
-                    logger.critical(f"replicas of function {self.fn_name}: {replica} | {replica.state} | {replica.node.name} | {replica.pod.name} | {replica.function.name}")
-
-                
+                # Change pod from warm to warmdisk
+                # Remove pod
                 yield env.process(
                     StateAPI.to_warmdisk(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1', node=chosen_node)
                 )
                 
-
-                logger.critical(f"lenA: {len(faas.get_replicas(fn_name=self.fn_name))}")
-                                
-                logger.critical("tesy")
+                yield env.timeout(20)
+                
+                # Change pod from warmdisk to cold
+                # Remove image - implement later
+                yield env.process(
+                    StateAPI.to_cold(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1')
+                )
                 
                 
+                yield env.process(
+                    StateAPI.to_null(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1')
+                )
+                
+                yield env.timeout(5)
                 
                 self.test = False
             

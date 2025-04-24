@@ -21,12 +21,21 @@ class StateAPI:
     API to controll life circle of pod
     """
     @staticmethod
-    def to_null(main_monitor:MainMonitor, function_name, pod_name):
+    def to_null(env: Environment, main_monitor:MainMonitor, function_name:str, pod_name:str):
         """
         No information of pod on the system
         """
-        return
-
+        fn_monitor = main_monitor.fn_monitor_map[function_name]
+        if pod_name not in fn_monitor.podmonitor_map:
+            logger.warning(f"Pod '{pod_name}' is not intialized")
+        else:
+            pod_monitor = fn_monitor.podmonitor_map[pod_name]
+            if pod_monitor.cold:
+                logger.info(f"[Simtime={env.now}] Pod '{pod_name}' of function '{function_name}' is changing to null state")
+                yield pod_monitor.state_signal("null")
+            else:
+                logger.warning("Current pod not in valid state")
+                
     @staticmethod
     def to_cold(env: Environment, main_monitor:MainMonitor, function_name:str, pod_name:str):
         """
@@ -37,14 +46,16 @@ class StateAPI:
         if pod_name not in fn_monitor.podmonitor_map:
             logger.info(f"[Simtime={env.now}] Pod '{pod_name}' of function {fn_monitor.name} is changing to cold state")
             fn_monitor.add_podmonitor(env=env, name=pod_name)
-            # logger.info(f"[Simtime={env.now}] Pod '{pod_name}' of function {fn_monitor.name} reached to cold state")
+            pod_monitor = fn_monitor.podmonitor_map[pod_name]
+            yield pod_monitor.state_signal("cold")
         else:
             pod_monitor = fn_monitor.podmonitor_map[pod_name]
-            if pod_monitor.warm:   
+            if pod_monitor.warmdisk:   
                 logger.info(f"[Simtime={env.now}] Pod '{pod_name}' of function {fn_monitor.name} is changing to cold state")
                 pod_monitor = fn_monitor.podmonitor_map[pod_name]
-                pod_monitor.warmdisk = False
-                pod_monitor.cold = True
+                yield pod_monitor.state_signal("cold")
+                # pod_monitor.warmdisk = False
+                # pod_monitor.cold = True
             else:
                 logger.warning("Current pod not in valid state")
     
@@ -62,9 +73,7 @@ class StateAPI:
             pod_monitor.node = node
             if pod_monitor.cold:
                 logger.info(f"[Simtime={env.now}] Pod '{pod_name}' of function '{function_name}' is changing to warmdisk state")
-                # pod_monitor = fn_monitor.podmonitor_map[pod_name]
                 yield pod_monitor.state_signal("warmdisk")
-                # pod_monitor.state_signal("warmdisk")
             elif pod_monitor.warm:
                 logger.info(f"[Simtime={env.now}] Changing pod '{pod_name}' of function '{function_name}' is changing to warmdisk state hihi")
                 pod_monitor = fn_monitor.podmonitor_map[pod_name]
@@ -91,7 +100,6 @@ class StateAPI:
                 logger.info(f"[Simtime={env.now}] Pod '{pod_name}' of function '{function_name}' is changing to warm state")
                 pod_monitor = fn_monitor.podmonitor_map[pod_name]
                 yield pod_monitor.state_signal("warm")
-                # yield from faas.scale_up(function_name, int(1))
                 logger.warning(f"Prepare scaling up function '{function_name}' by 1")
                 pod_monitor.node = node
                 # pod_monitor.warmdisk = False
@@ -124,35 +132,6 @@ class StateAPI:
         return
 
 
-def to_warm_process(env: Environment, main_monitor: MainMonitor, function_name: str, pod_name: str, node: Node):
-        """
-        Using the image to turn the pod on
-        """
-        faas: FaasSystem = env.faas
-        fn_monitor = main_monitor.fn_monitor_map[function_name]
-        if pod_name not in fn_monitor.podmonitor_map:
-            logger.warning(f"Pod '{pod_name}' is not intialized")
-        else:
-            pod_monitor = fn_monitor.podmonitor_map[pod_name]
-            if pod_monitor.warmdisk:
-                logger.debug(f"Changing pod '{pod_name}' of function '{function_name}' from warmdisk to warm")
-                pod_monitor = fn_monitor.podmonitor_map[pod_name]
-                
-                yield from faas.scale_up(function_name, int(1))
-                logger.warning(f"Scaled up function '{function_name}' by 1")
-                
-                pod_monitor.node = node
-                # pod_monitor.warmdisk = False
-                # pod_monitor.warm = True
-            elif pod_monitor.active:
-                logger.debug(f"Changing pod '{pod_name}' of function '{function_name}' from active to warm")
-                pod_monitor = fn_monitor.podmonitor_map[pod_name]
-                pod_monitor.active = False
-                pod_monitor.warmdisk = True
-            else:
-                logger.warning("Current pod not in valid state")
-        return
- 
        
 def docker_pull(env: Environment, image_str: str, node: EtherNode):
     """

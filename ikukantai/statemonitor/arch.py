@@ -60,6 +60,8 @@ class PodMonitor:
         self.active = False      # receiving request
         self.node: Node = None   # Assign which node to schedule pod
         
+        self.firstinit = True
+        
         # --- Simpy Integration ---
         # self.event = simpy.Event(env)
         # self.new_state = None
@@ -69,7 +71,6 @@ class PodMonitor:
         
         self.lifecycle_process = env.process(self.run_pod_lifecircle())
         
-        logger.info(f"[Simtime={self.env.now}] Pod '{self.name}' of function {self.function_monitor.name} reached cold state")
     
     def get_current_state(self):
         if self.null:
@@ -107,11 +108,33 @@ class PodMonitor:
             new_state = yield self.state_queue.get()
             
             logger.critical(f"Pod '{self.name}': Dequeued '{new_state}'. Current Flags: C={self.cold}, W={self.warm}, WD={self.warmdisk}, A={self.active}")
+
+            # --- Change to null state ---
+            if new_state == "null":
+                if self.cold:
+                    yield self.env.timeout(0)
+                    self.cold = False
+                    self.null = True                    
+                    logger.info(f"[Simtime={self.env.now}] Pod '{self.name}' of function {self.function_monitor.name} reached null state")
             
-            # logger.info(f"[Simtime={self.env.now}] Pod '{self.name}' of function {self.function_monitor.name} is changing to {new_state} state")
+            # --- Change to cold state ---
+            elif new_state == "cold":
+                if self.firstinit:
+                    yield self.env.timeout(0)
+                    self.firstinit = False
+                    logger.info(f"[Simtime={self.env.now}] Pod '{self.name}' of function {self.function_monitor.name} reached cold state")
+                    
+                elif self.warmdisk:
+                    self.warmdisk = False
+                    self.cold = True
+                    yield self.env.timeout(0)
+                    logger.info(f"[Simtime={self.env.now}] Pod '{self.name}' of function {self.function_monitor.name} is reached {new_state} state")
+                else:
+                    logger.warning("Current pod not in valid state hihi")   
+                    logger.critical(self.get_current_state())   
             
             # --- Change to warm state ---
-            if new_state == "warmdisk": 
+            elif new_state == "warmdisk": 
                 if self.cold: # Download image for the pod
                     dockerPull = docker_pull(env=self.env,
                                              image_str=self.function_monitor.function.fn_images[0].image, # FIXME: Current use image[0] as default
@@ -144,7 +167,6 @@ class PodMonitor:
                     self.warmdisk = True
                     logger.info(f"[Simtime={self.env.now}] Pod '{self.name}' of function {self.function_monitor.name} is reached {new_state} state")
                 else:
-                    logger.warning(self.get_current_state())
                     logger.warning("Current pod not in valid state")
                     
             # --- Change to warm state ---
