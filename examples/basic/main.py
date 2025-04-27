@@ -3,6 +3,7 @@ from logger_config.logger_config import setup_logger
 from typing import List
 
 import ether.scenarios.urbansensing as scenario
+import ether.scenarios.cloudregions as scenario2
 from skippy.core.utils import parse_size_string
 
 from sim import docker
@@ -23,7 +24,7 @@ def main():
     logging.basicConfig(level=logging.DEBUG)
 
     # a topology holds the cluster configuration and network topology
-    topology = example_topology()
+    topology = example_topology_2()
 
     # a benchmark is a simpy process that sets up the runtime system (e.g., creates container images, deploys functions)
     # and creates workload by simulating function requests
@@ -39,6 +40,24 @@ def example_topology() -> Topology:
     scenario.UrbanSensingScenario().materialize(t)
     t.init_docker_registry()
 
+    return t
+
+def example_topology_2() -> Topology:
+
+    t = Topology()
+        
+    my_regions = ["cloud-region", "edge-region"]
+    my_region_sizes = [(2, 1), (3, 1)] 
+    
+    ''' 
+    :param regions: list of region names
+    :param region_sizes: server_per_rack x racks
+    '''
+    my_scenario = scenario2.CloudRegionsScenario(regions=my_regions, region_size=my_region_sizes)
+    my_scenario.materialize(t)
+    
+    t.init_docker_registry()
+    
     return t
 
 

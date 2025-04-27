@@ -1,5 +1,4 @@
 import logging
-import time
 from typing import Dict, List
 
 from ikukantai.statemonitor.arch import FunctionMonitor, MainMonitor
@@ -8,6 +7,7 @@ from ikukantai.statemonitor.api import StateAPI
 from sim.core import Environment
 from sim.faas import FunctionDeployment, FaasSystem, FunctionState
 from sim.faas.scaling import FaasRequestScaler
+from sim.resource import ResourceMonitor, MetricsServer, ResourceState
 
 from skippy.core.model import Node
 
@@ -40,14 +40,24 @@ class ReinforcementLearningScaler(FaasRequestScaler):
     def run(self):
         env: Environment = self.env
         faas: FaasSystem = env.faas
+        resource_monitor: ResourceMonitor = env.resource_monitor
+        metrics_server: MetricsServer = env.metrics_server
+        resource_state: ResourceState = env.resource_state
+        
+        
         while self.running:
             logger.info('Invoking scheduling algorithm - reinforcement learning')
+            
+            
             
             # Pause the execution for the duration [reconcile_interval = 10s]
             yield env.timeout(self.reconcile_interval)
             
             node_idx = 3
             chosen_node: Node = self.env.cluster.list_nodes()[node_idx]
+            
+            logger.warning(f"RESOURCE ALLOCATION: {chosen_node.allocatable}")
+            
             
             # Testing session
             # Log all function name (For testing)
@@ -67,7 +77,7 @@ class ReinforcementLearningScaler(FaasRequestScaler):
                 yield env.process(
                     StateAPI.to_warmdisk(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1', node=chosen_node)
                 )
-                yield env.timeout(10)
+                yield env.timeout(20)
                 
                 # Change pod from warmdisk to warm
                 # Make pod available
@@ -90,18 +100,21 @@ class ReinforcementLearningScaler(FaasRequestScaler):
                     StateAPI.to_cold(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1')
                 )
                 
-                
+                # Change pod from cold to null
+                # Delete identification
                 yield env.process(
                     StateAPI.to_null(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1')
                 )
                 
-                yield env.timeout(5)
+                yield env.timeout(20)
                 
                 self.test = False
             
                  
             # self.running = False 
             logger.debug(f'Scale hanging')        
+            
+            logger.warning(f"Resource allocation: {chosen_node.allocatable} haha")
 
     def stop(self):
         logger.warning('Stop scheduling algorithm - reinforcement learning')

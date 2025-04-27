@@ -180,7 +180,7 @@ class IkukantaiSystem(FaasSystem):
         for container in fn.fn_containers:
             del self.functions_definitions[container.image]
 
-    def scale_down(self, fn_name: str, remove: int):
+    def scale_down(self, fn_name: str, remove: int, replica: FunctionReplica):
         replica_count = len(self.get_replicas(fn_name, FunctionState.RUNNING))
         if replica_count == 0:
             return
@@ -202,11 +202,13 @@ class IkukantaiSystem(FaasSystem):
             return
 
         logger.info(f'scale down {fn_name} by {remove}')
-        replicas = self.choose_replicas_to_remove(fn_name, remove)
+        # replicas = self.choose_replicas_to_remove(fn_name, remove)
         self.env.metrics.log_scaling(fn_name, -remove)
-        for replica in replicas:
-            yield from self._remove_replica(replica)
-            replicas.remove(replica)
+        # for replica in replicas:
+            # yield from self._remove_replica(replica)
+            # replicas.remove(replica)
+        yield from self._remove_replica(replica=replica)
+        
 
     def choose_replicas_to_remove(self, fn_name: str, n: int):
         # TODO implement more sophisticated, currently just picks last ones deployed
@@ -374,7 +376,7 @@ def simulate_function_start(env: Environment, replica: FunctionReplica):
     sim: FunctionSimulator = replica.simulator
 
     logger.debug('deploying function %s to %s', replica.function.name, replica.node.name)
-    # env.metrics.log_deploy(replica)
+    env.metrics.log_deploy(replica)
     # yield from sim.deploy(env, replica)
     replica.state = FunctionState.STARTING
     env.metrics.log_startup(replica)

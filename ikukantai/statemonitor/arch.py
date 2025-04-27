@@ -148,8 +148,6 @@ class PodMonitor:
                     faas: FaasSystem = self.env.faas
                     replicas: List[FunctionReplica] = faas.get_replicas(fn_name=self.function_monitor.name)
                     
-                    logger.critical(f"inside {replicas}")
-                    
                     found_rep = False
                     for replica in replicas:
                         if replica.node.skippy_node == self.node and replica.state == FunctionState.RUNNING:
@@ -157,9 +155,8 @@ class PodMonitor:
                             found_rep = True
                             break
                     if found_rep:
-                        logger.critical(f"chosen: {chosen_replica}")
                         faas: FaasSystem = self.env.faas
-                        yield self.env.process(faas.scale_down(self.function_monitor.name, int(1)))
+                        yield self.env.process(faas.scale_down(self.function_monitor.name, int(1), chosen_replica))
                     else:
                         logger.critical("Not found rep")
                         

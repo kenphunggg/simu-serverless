@@ -75,7 +75,7 @@ class StateAPI:
                 logger.info(f"[Simtime={env.now}] Pod '{pod_name}' of function '{function_name}' is changing to warmdisk state")
                 yield pod_monitor.state_signal("warmdisk")
             elif pod_monitor.warm:
-                logger.info(f"[Simtime={env.now}] Changing pod '{pod_name}' of function '{function_name}' is changing to warmdisk state hihi")
+                logger.info(f"[Simtime={env.now}] Changing pod '{pod_name}' of function '{function_name}' is changing to warmdisk state")
                 pod_monitor = fn_monitor.podmonitor_map[pod_name]
                 yield pod_monitor.state_signal("warmdisk")
                 yield env.timeout(0.001)

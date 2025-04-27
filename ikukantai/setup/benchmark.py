@@ -24,17 +24,11 @@ class IkukantaiBenchmark(Benchmark):
         containers: docker.ContainerRegistry = env.container_registry
 
         # populate the global container registry with images       
-        # containers.put(ImageProperties('app1', parse_size_string('56M'), arch='aarch64'))
-        # containers.put(ImageProperties('app2', parse_size_string('56M'), arch='aarch64'))
-        # containers.put(ImageProperties('app3', parse_size_string('56M'), arch='aarch64'))
-        
         # TODO by ken: i dont know why image only work with arch x86
         containers.put(ImageProperties('app1', parse_size_string('56M'), arch='x86'))
         containers.put(ImageProperties('app2', parse_size_string('56M'), arch='x86'))
         containers.put(ImageProperties('app3', parse_size_string('56M'), arch='x86'))
         
-        
-
         # log all the images in the container
         for name, tag_dict in containers.images.items():
             for tag, images in tag_dict.items():
