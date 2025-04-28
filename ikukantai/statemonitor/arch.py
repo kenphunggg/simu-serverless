@@ -130,8 +130,8 @@ class PodMonitor:
                     yield self.env.timeout(0)
                     logger.info(f"[Simtime={self.env.now}] Pod '{self.name}' of function {self.function_monitor.name} is reached {new_state} state")
                 else:
-                    logger.warning("Current pod not in valid state hihi")   
-                    logger.critical(self.get_current_state())   
+                    logger.warning("Current pod not in valid state")   
+                    logger.warning(self.get_current_state())   
             
             # --- Change to warm state ---
             elif new_state == "warmdisk": 
@@ -158,7 +158,7 @@ class PodMonitor:
                         faas: FaasSystem = self.env.faas
                         yield self.env.process(faas.scale_down(self.function_monitor.name, int(1), chosen_replica))
                     else:
-                        logger.critical("Not found rep")
+                        logger.warning("Not found rep")
                         
                     self.warm = False
                     self.warmdisk = True

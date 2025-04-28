@@ -21,6 +21,7 @@ setup_logger()
 
 class IkukantaiBenchmark(Benchmark):
     def setup(self, env: Environment):
+        
         containers: docker.ContainerRegistry = env.container_registry
 
         # populate the global container registry with images       

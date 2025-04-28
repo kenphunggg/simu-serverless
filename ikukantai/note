@@ -12,3 +12,9 @@
 - fix multiple identification in PodMonitor
 
 - fix state flag when changing between states - current fixxed yield time between states
+
+- how to calculate coldstart delay for each function on each node
+
+- where to get these default value
+--- required_cpu_millis = container.resources.requests.get('cpu', container.resources.default_milli_cpu_request)
+--- required_memory = container.resources.requests.get('memory', container.resources.default_mem_request)

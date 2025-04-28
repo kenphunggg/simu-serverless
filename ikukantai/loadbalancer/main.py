@@ -30,7 +30,17 @@ class MyFunctionSimulator(FunctionSimulator):
         logger.info('[simtime=%.2f] starting up function replica for function %s', env.now, replica.function.name)
 
         # you could create a very fine-grained setup routines here
-        yield env.timeout(10)  # simulate docker startup
+        coldstart = 0 # FIXME by ken: adjust different start up for different functions - coldstart delay
+        yield env.timeout(coldstart)  # simulate docker startup
+        
+        # claim resource consumption by replica
+        for container in replica.pod.spec.containers:
+            required_cpu_millis = container.resources.requests.get('cpu', container.resources.default_milli_cpu_request)
+            required_memory = container.resources.requests.get('memory', container.resources.default_mem_request)
+            
+            node = replica.node.skippy_node
+            node.allocatable.cpu_millis -= required_cpu_millis
+            node.allocatable.memory -= required_memory
 
     def setup(self, env: Environment, replica: FunctionReplica):        
         
@@ -105,6 +115,17 @@ class MyFunctionSimulator(FunctionSimulator):
         
 
     def teardown(self, env: Environment, replica: FunctionReplica):
+        yield env.timeout(0)
+        
+    def claim_resources(self, env: Environment, replica: FunctionReplica, request: FunctionRequest = None):
+        # FIXME by ken: change resource based on different functions
+        env.resource_state.put_resource(replica, 'cpu', 1000)
+        env.resource_state.put_resource(replica, 'memory', 10000)
+        yield env.timeout(0)
+
+    def release_resources(self, env: Environment, replica: FunctionReplica, request: FunctionRequest = None):
+        env.resource_state.remove_resource(replica, 'cpu', 0.7)
+        env.resource_state.remove_resource(replica, 'memory', 0.3)
         yield env.timeout(0)
 
 def inRegion(node, region):

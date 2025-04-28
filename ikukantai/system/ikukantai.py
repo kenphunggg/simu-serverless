@@ -346,18 +346,32 @@ class IkukantaiSystem(FaasSystem):
     def _remove_replica(self, replica: FunctionReplica):
         env = self.env
         node = replica.node.skippy_node
+        
 
         env.metrics.log_teardown(replica)
         yield from replica.simulator.teardown(env, replica)
 
+        # Taken from 
+        # .venv/lib/site-packages/skippy/core/clustercontext.py
+        # Line 90
+        for container in replica.pod.spec.containers:
+            required_cpu_millis = container.resources.requests.get('cpu', container.resources.default_milli_cpu_request)
+            required_memory = container.resources.requests.get('memory', container.resources.default_mem_request)
+
+            # node.allocatable.cpu_millis += required_cpu_millis
+            # node.allocatable.memory += required_memory
+
         self.env.cluster.remove_pod_from_node(replica.pod, node)
+        
         replica.state = FunctionState.SUSPENDED
+        
         self.replicas[replica.function.name].remove(replica)
 
         env.metrics.log('allocation', {
             'cpu': 1 - (node.allocatable.cpu_millis / node.capacity.cpu_millis),
             'mem': 1 - (node.allocatable.memory / node.capacity.memory)
         }, node=node.name)
+        
         self.replica_count[replica.fn_name] -= 1
         self.functions_definitions[replica.image] -= 1
 

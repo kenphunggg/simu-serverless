@@ -48,16 +48,14 @@ class ReinforcementLearningScaler(FaasRequestScaler):
         while self.running:
             logger.info('Invoking scheduling algorithm - reinforcement learning')
             
-            
-            
             # Pause the execution for the duration [reconcile_interval = 10s]
             yield env.timeout(self.reconcile_interval)
             
             node_idx = 3
             chosen_node: Node = self.env.cluster.list_nodes()[node_idx]
             
-            logger.warning(f"RESOURCE ALLOCATION: {chosen_node.allocatable}")
-            
+            # Get current resource allocation
+            logger.debug(f"Get resource allocation on node {chosen_node}: {chosen_node.allocatable}")
             
             # Testing session
             # Log all function name (For testing)
@@ -92,6 +90,8 @@ class ReinforcementLearningScaler(FaasRequestScaler):
                     StateAPI.to_warmdisk(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1', node=chosen_node)
                 )
                 
+                logger.critical(f"WARMDISK {chosen_node.allocatable}")
+                
                 yield env.timeout(20)
                 
                 # Change pod from warmdisk to cold
@@ -113,8 +113,6 @@ class ReinforcementLearningScaler(FaasRequestScaler):
                  
             # self.running = False 
             logger.debug(f'Scale hanging')        
-            
-            logger.warning(f"Resource allocation: {chosen_node.allocatable} haha")
 
     def stop(self):
         logger.warning('Stop scheduling algorithm - reinforcement learning')
