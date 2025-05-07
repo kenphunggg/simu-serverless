@@ -1,0 +1,4 @@
+>>>>> May 5th 2025 <<<<<
+
+- Done collecting metrics
+- Currently working with function simulate
