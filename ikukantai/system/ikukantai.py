@@ -4,13 +4,14 @@ from typing import Dict, List
 from collections import defaultdict, Counter
 
 from system.autoscaler import ReinforcementLearningScaler
+from system.loadbalancer import EdgeLoadBalancer
 from ikukantai.statemonitor.arch import FunctionMonitor, MainMonitor
 
 from ether.util import parse_size_string
 
 import simpy
 
-from sim.core import Environment
+from sim.core import Environment, NodeState
 from sim.faas import RoundRobinLoadBalancer, FunctionDeployment, FunctionReplica, FunctionContainer, FunctionRequest, \
     FunctionState
 from sim.faas.scaling import FaasRequestScaler, AverageFaasRequestScaler, AverageQueueFaasRequestScaler
@@ -44,7 +45,7 @@ class IkukantaiSystem(FaasSystem):
         self.scheduler_queue = simpy.Store(env)
 
         # TODO let users inject LoadBalancer
-        self.load_balancer = RoundRobinLoadBalancer(env, self.replicas)
+        self.load_balancer = EdgeLoadBalancer(env, self.replicas)
 
         self.functions_deployments: Dict[str, FunctionDeployment] = dict()
         self.replica_count: Dict[str, int] = dict()
@@ -73,6 +74,21 @@ class IkukantaiSystem(FaasSystem):
             return self.replicas[fn_name]
 
         return [replica for replica in self.replicas[fn_name] if replica.state == state]
+    
+    def get_edge_replicas(self, fn_name: str, source_node: NodeState) -> List[FunctionReplica]:
+        s_node = source_node.ether_node
+        result = []
+        for replica in self.replicas[fn_name]:
+            if replica.state == FunctionState.RUNNING:
+                d_node = replica.node.ether_node
+                if self.env.topology.latency(s_node, d_node) < 100:
+                    logging.critical(f"lower than 100 {self.env.topology.latency(s_node, d_node)} | {s_node} - {d_node}")
+                    result.append(replica)
+                else:
+                    logging.critical(f"more than 100 {self.env.topology.latency(s_node, d_node)} | {s_node} - {d_node}")
+                    result.append(replica)
+        
+        return result
 
     def deploy(self, fd: FunctionDeployment, mainmonitor: MainMonitor, fm: FunctionMonitor):
         self.mainmonitor = mainmonitor
@@ -118,7 +134,7 @@ class IkukantaiSystem(FaasSystem):
         self.env.metrics.log_function_replica(replica)
         yield self.scheduler_queue.put((replica, services))
 
-    def invoke(self, request: FunctionRequest):
+    def old_invoke(self, request: FunctionRequest):
         # TODO: how to return a FunctionResponse?
         logger.debug('invoking function %s', request.name)
 
@@ -141,6 +157,50 @@ class IkukantaiSystem(FaasSystem):
             yield from self.poll_available_replica(request.name)
 
         if len(replicas) < 1:
+            raise ValueError
+        elif len(replicas) > 1:
+            logger.debug('asking load balancer for replica for request %s:%d', request.name, request.request_id)
+            replica = self.next_replica(request)
+        else:
+            replica = replicas[0]
+
+        logger.debug('dispatching request %s:%d to %s', request.name, request.request_id, replica.node.name)
+
+        t_start = self.env.now
+        yield from simulate_function_invocation(self.env, replica, request)
+
+        t_end = self.env.now
+
+        t_wait = t_start - t_received
+        t_exec = t_end - t_start
+        self.env.metrics.log_invocation(request.name, replica.image, replica.node.name, t_wait, t_start,
+                                        t_exec, id(replica))
+        
+    def invoke(self, request: FunctionRequest, source_node: NodeState):
+        # TODO: how to return a FunctionResponse?
+        logger.debug('invoking function %s', request.name)
+
+        if request.name not in self.functions_deployments.keys():
+            logger.warning('invoking non-existing function %s', request.name)
+            return
+
+        t_received = self.env.now
+
+        # replicas = self.get_replicas(request.name, FunctionState.RUNNING)
+        replicas = self.get_edge_replicas(request.name, source_node)
+        if not replicas:
+            '''
+            https://docs.openfaas.com/architecture/autoscaling/#scaling-up-from-zero-replicas
+
+            When scale_from_zero is enabled a cache is maintained in memory indicating the readiness of each function.
+            If when a request is received a function is not ready, then the HTTP connection is blocked, the function is
+            scaled to min replicas, and as soon as a replica is available the request is proxied through as per normal.
+            You will see this process taking place in the logs of the gateway component.
+            '''
+            yield from self.poll_available_replica(request.name)
+
+        if len(replicas) < 1:
+            logger.warning("Value Error")
             raise ValueError
         elif len(replicas) > 1:
             logger.debug('asking load balancer for replica for request %s:%d', request.name, request.request_id)
@@ -264,8 +324,11 @@ class IkukantaiSystem(FaasSystem):
             logger.debug("Function %s wanted to scale, but not all requested replicas were deployed: %s", fn_name,
                          str(scale))
 
-    def next_replica(self, request) -> FunctionReplica:
+    def old_next_replica(self, request) -> FunctionReplica:
         return self.load_balancer.next_replica(request)
+    
+    def next_replica(self, request, source_node) -> FunctionReplica:
+        return self.load_balancer.next_replica(request, source_node)
 
     def start(self):
         for process in self.env.background_processes:

@@ -5,7 +5,7 @@ from ikukantai.setup.benchmark import IkukantaiBenchmark
 from ikukantai.setup.topology import ikukantai_topology
 
 from scheduler.main import CustomScheduler as scheduler
-from loadbalancer.main import CustomSimulatorFactory as loadBalancer
+from function_simulate.main import CustomSimulatorFactory as loadBalancer
 from system.ikukantai import IkukantaiSystem
 
 from system.faasim import Simulation

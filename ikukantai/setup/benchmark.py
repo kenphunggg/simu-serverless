@@ -60,15 +60,15 @@ class IkukantaiBenchmark(Benchmark):
         
 
         # # # run workload
-        # ps = []
-        # # execute 10 requests in parallel
-        # logger.info('executing 2 app1 requests')
-        # for i in range(2):
-        #     ps.append(env.process(env.faas.invoke(FunctionRequest('app1'))))
+        ps = []
+        # execute 10 requests in parallel
+        logger.info('executing 2 app1 requests')
+        for i in range(2):
+            ps.append(env.process(env.faas.invoke(FunctionRequest('app1'), env.get_node_state("server_4"))))
 
         # # wait for invocation processes to finish
-        # for p in ps:
-        #     yield p
+        for p in ps:
+            yield p
 
     def prepare_deployment(self):
         # TODO by LAZYken: adjust value for apps used

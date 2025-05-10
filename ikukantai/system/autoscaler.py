@@ -86,32 +86,32 @@ class ReinforcementLearningScaler(FaasRequestScaler):
                 
                 # Change pod from warm to warmdisk
                 # Remove pod
-                yield env.process(
-                    StateAPI.to_warmdisk(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1', node=chosen_node)
-                )
+                # yield env.process(
+                #     StateAPI.to_warmdisk(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1', node=chosen_node)
+                # )
                 
-                logger.critical(f"WARMDISK {chosen_node.allocatable}")
+                # logger.critical(f"WARMDISK {chosen_node.allocatable}")
                 
-                yield env.timeout(20)
+                # yield env.timeout(20)
                 
                 # Change pod from warmdisk to cold
                 # Remove image - implement later
-                yield env.process(
-                    StateAPI.to_cold(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1')
-                )
+                # yield env.process(
+                #     StateAPI.to_cold(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1')
+                # )
                 
                 # Change pod from cold to null
                 # Delete identification
-                yield env.process(
-                    StateAPI.to_null(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1')
-                )
+                # yield env.process(
+                #     StateAPI.to_null(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1')
+                # )
                 
-                yield env.timeout(20)
+                # yield env.timeout(20)
                 
                 self.test = False
             
                  
-            # self.running = False 
+            self.running = False 
             logger.debug(f'Scale hanging')        
 
     def stop(self):
