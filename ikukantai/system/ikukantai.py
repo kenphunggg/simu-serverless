@@ -216,7 +216,7 @@ class IkukantaiSystem(FaasSystem):
         logger.debug('dispatching request %s:%d to %s', request.name, request.request_id, replica.node.name)
 
         t_start = self.env.now
-        yield from simulate_function_invocation(self.env, replica, request, coldstart_time)
+        yield from simulate_function_invocation(self.env, replica, request, source_node, coldstart_time)
 
         t_end = self.env.now
 
@@ -534,10 +534,10 @@ def old_simulate_function_invocation(env: Environment, replica: FunctionReplica,
     yield from replica.simulator.invoke(env, replica, request)
     env.metrics.log_stop_exec(request, replica)
     
-def simulate_function_invocation(env: Environment, replica: FunctionReplica, request: FunctionRequest, coldstart_time):
+def simulate_function_invocation(env: Environment, replica: FunctionReplica, request: FunctionRequest, source_node: str, coldstart_time):
     if coldstart_time < Config.time_out:
         env.metrics.log_start_exec(request, replica)
-        yield from replica.simulator.invoke(env, replica, request)
+        yield from replica.simulator.invoke(env, replica, request, source_node)
         env.metrics.log_stop_exec(request, replica)
     else:
         # Drop request
