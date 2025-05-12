@@ -2,3 +2,7 @@
 
 - Done collecting metrics
 - Currently working with function simulate
+
+
+>>>> May 10th 2025 <<<<<
+- Done adjusting EdgeLoadBalancer-Roundrobin

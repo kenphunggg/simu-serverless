@@ -18,3 +18,7 @@
 - where to get these default value
 --- required_cpu_millis = container.resources.requests.get('cpu', container.resources.default_milli_cpu_request)
 --- required_memory = container.resources.requests.get('memory', container.resources.default_mem_request)
+
+- TODO when set up simulation:
+--- Set CPU-RAM for coldstart a pod, when proccessing a request\
+--- Set up Benchmark

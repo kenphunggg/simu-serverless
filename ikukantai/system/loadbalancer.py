@@ -3,6 +3,7 @@ from collections import defaultdict
 from typing import List, Dict
 
 from logger_config.logger_config import setup_logger
+from setup.config import Config
 
 from sim.topology import Topology
 from sim.core import Environment, NodeState
@@ -22,13 +23,13 @@ class EdgeLoadBalancer:
         self.replicas = replicas
         self.counters = defaultdict(lambda: 0)
 
-    def get_running_replicas(self, function: str, source_node: NodeState):
-        s_node = source_node.ether_node
+    def get_running_replicas(self, function: str, source_node: str):
+        s_node = self.env.get_node_state(source_node).ether_node
         result = []
         for replica in self.replicas[function]:
             if replica.state == FunctionState.RUNNING:
                 d_node = replica.node.ether_node
-                if self.topology.latency(s_node, d_node) < 20:
+                if self.topology.latency(s_node, d_node) < Config.edge_delay:
                     # logging.critical(f"lower than 100 {self.topology.latency(s_node, d_node)} | {s_node} - {d_node}")
                     result.append(replica)
                 # else:

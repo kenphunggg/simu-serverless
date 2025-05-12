@@ -6,6 +6,7 @@ from collections import defaultdict, Counter
 from system.autoscaler import ReinforcementLearningScaler
 from system.loadbalancer import EdgeLoadBalancer
 from ikukantai.statemonitor.arch import FunctionMonitor, MainMonitor
+from setup.config import Config
 
 from ether.util import parse_size_string
 
@@ -75,18 +76,18 @@ class IkukantaiSystem(FaasSystem):
 
         return [replica for replica in self.replicas[fn_name] if replica.state == state]
     
-    def get_edge_replicas(self, fn_name: str, source_node: NodeState) -> List[FunctionReplica]:
-        s_node = source_node.ether_node
+    def get_edge_replicas(self, fn_name: str, source_node: str) -> List[FunctionReplica]:
+        s_node = self.env.get_node_state(source_node).ether_node
         result = []
         for replica in self.replicas[fn_name]:
             if replica.state == FunctionState.RUNNING:
                 d_node = replica.node.ether_node
-                if self.env.topology.latency(s_node, d_node) < 100:
-                    logging.critical(f"lower than 100 {self.env.topology.latency(s_node, d_node)} | {s_node} - {d_node}")
+                if self.env.topology.latency(s_node, d_node) < Config.edge_delay:
+                    # logging.critical(f"lower than 100 {self.env.topology.latency(s_node, d_node)} | {s_node} - {d_node}")
                     result.append(replica)
-                else:
-                    logging.critical(f"more than 100 {self.env.topology.latency(s_node, d_node)} | {s_node} - {d_node}")
-                    result.append(replica)
+                # else:
+                #     logging.critical(f"more than 100 {self.env.topology.latency(s_node, d_node)} | {s_node} - {d_node}")
+                #     result.append(replica)
         
         return result
 
@@ -176,7 +177,7 @@ class IkukantaiSystem(FaasSystem):
         self.env.metrics.log_invocation(request.name, replica.image, replica.node.name, t_wait, t_start,
                                         t_exec, id(replica))
         
-    def invoke(self, request: FunctionRequest, source_node: NodeState):
+    def invoke(self, request: FunctionRequest, source_node: str):
         # TODO: how to return a FunctionResponse?
         logger.debug('invoking function %s', request.name)
 
@@ -186,8 +187,9 @@ class IkukantaiSystem(FaasSystem):
 
         t_received = self.env.now
 
-        # replicas = self.get_replicas(request.name, FunctionState.RUNNING)
         replicas = self.get_edge_replicas(request.name, source_node)
+        
+        start_coldstart = self.env.now
         if not replicas:
             '''
             https://docs.openfaas.com/architecture/autoscaling/#scaling-up-from-zero-replicas
@@ -198,7 +200,10 @@ class IkukantaiSystem(FaasSystem):
             You will see this process taking place in the logs of the gateway component.
             '''
             yield from self.poll_available_replica(request.name)
-
+        
+        end_coldstart = self.env.now
+        coldstart_time = end_coldstart - start_coldstart
+        
         if len(replicas) < 1:
             logger.warning("Value Error")
             raise ValueError
@@ -211,7 +216,7 @@ class IkukantaiSystem(FaasSystem):
         logger.debug('dispatching request %s:%d to %s', request.name, request.request_id, replica.node.name)
 
         t_start = self.env.now
-        yield from simulate_function_invocation(self.env, replica, request)
+        yield from simulate_function_invocation(self.env, replica, request, coldstart_time)
 
         t_end = self.env.now
 
@@ -268,7 +273,6 @@ class IkukantaiSystem(FaasSystem):
             # yield from self._remove_replica(replica)
             # replicas.remove(replica)
         yield from self._remove_replica(replica=replica)
-        
 
     def choose_replicas_to_remove(self, fn_name: str, n: int):
         # TODO implement more sophisticated, currently just picks last ones deployed
@@ -525,7 +529,16 @@ def simulate_data_upload(env: Environment, replica: FunctionReplica):
     env.metrics.log_flow(size, env.now - started, route.source, route.destination, 'data_upload')
 
 
-def simulate_function_invocation(env: Environment, replica: FunctionReplica, request: FunctionRequest):
+def old_simulate_function_invocation(env: Environment, replica: FunctionReplica, request: FunctionRequest):
     env.metrics.log_start_exec(request, replica)
     yield from replica.simulator.invoke(env, replica, request)
     env.metrics.log_stop_exec(request, replica)
+    
+def simulate_function_invocation(env: Environment, replica: FunctionReplica, request: FunctionRequest, coldstart_time):
+    if coldstart_time < Config.time_out:
+        env.metrics.log_start_exec(request, replica)
+        yield from replica.simulator.invoke(env, replica, request)
+        env.metrics.log_stop_exec(request, replica)
+    else:
+        # Drop request
+        return

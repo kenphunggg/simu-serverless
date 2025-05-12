@@ -64,7 +64,7 @@ class IkukantaiBenchmark(Benchmark):
         # execute 10 requests in parallel
         logger.info('executing 2 app1 requests')
         for i in range(2):
-            ps.append(env.process(env.faas.invoke(FunctionRequest('app1'), env.get_node_state("server_4"))))
+            ps.append(env.process(env.faas.invoke(FunctionRequest('app1'), 'server_4')))
 
         # # wait for invocation processes to finish
         for p in ps:
