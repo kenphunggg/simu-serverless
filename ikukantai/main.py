@@ -4,9 +4,9 @@ from logger_config.logger_config import setup_logger, helloWorld
 from ikukantai.setup.benchmark import IkukantaiBenchmark
 from ikukantai.setup.topology import ikukantai_topology
 
-from scheduler.main import CustomScheduler as scheduler
+from ikukantai.system.scheduler.schedule import CustomScheduler as scheduler
 from function_simulate.main import CustomSimulatorFactory as loadBalancer
-from system.ikukantai import IkukantaiSystem
+from ikukantai.system.main import IkukantaiSystem
 
 from system.faasim import Simulation
 

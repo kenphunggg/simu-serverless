@@ -3,7 +3,7 @@ import time
 from typing import Dict, List
 from collections import defaultdict, Counter
 
-from system.autoscaler import ReinforcementLearningScaler
+from ikukantai.system.scheduler.autoscaler import ReinforcementLearningScaler
 from system.loadbalancer import EdgeLoadBalancer
 from ikukantai.statemonitor.arch import FunctionMonitor, MainMonitor
 from setup.config import Config
