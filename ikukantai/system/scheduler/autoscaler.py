@@ -40,10 +40,6 @@ class ReinforcementLearningScaler(FaasRequestScaler):
     def run(self):
         env: Environment = self.env
         faas: FaasSystem = env.faas
-        resource_monitor: ResourceMonitor = env.resource_monitor
-        metrics_server: MetricsServer = env.metrics_server
-        resource_state: ResourceState = env.resource_state
-        
         
         while self.running:
             logger.info('Invoking scheduling algorithm - reinforcement learning')
@@ -107,6 +103,8 @@ class ReinforcementLearningScaler(FaasRequestScaler):
                 # )
                 
                 # yield env.timeout(20)
+                
+                # logger.critical(self.main_monitor.ram_usage[chosen_node])
                 
                 self.test = False
             

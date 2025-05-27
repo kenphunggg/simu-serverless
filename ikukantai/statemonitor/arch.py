@@ -4,7 +4,7 @@ import simpy
 
 from logger_config.logger_config import setup_logger
 
-from sim.faas import Function, FaasSystem, FunctionReplica
+from sim.faas import Function, FaasSystem, FunctionReplica, FunctionRequest
 from sim.faas.core import FunctionState
 from sim.core import Environment
 from sim.topology import DockerRegistry
@@ -22,12 +22,40 @@ class MainMonitor:
     """
     Manage all function
     """
-    def __init__(self):
+    def __init__(self, env: Environment):
+        self.env = env
+        self.run = True
         self.fn_monitor_map: Dict[str, 'FunctionMonitor'] = {}
+        self.ram_usage: Dict[str, Dict[int, int]] = {} # nodename:[timestamp:ram_usage]
+        self.cpu_usage: Dict[str, Dict[int, int]] = {} # nodename:[timestamp:cpu_usage]
+        self.timestamp: Dict[FunctionRequest, Dict[str, int]] = {} # FunctionRequest: [t1: 2, t2: 3, t3: 4, t4: 5, t_drop: 1]
+        self.run_metric_monitor = env.process(self.metric_monitor())
+        
+    def stop(self):
+        self.run = False
         
     def add_fnMonitor(self, fn_monitor: 'FunctionMonitor'):
         self.fn_monitor_map[fn_monitor.function.name] = fn_monitor
         logger.info(f"Finish adding new FunctionMonitor for function '{fn_monitor.function.name}'")
+        
+    def metric_monitor(self):
+        while self.run:
+            self.update_metric()
+            yield self.env.timeout(2)
+    
+    def update_metric(self):
+        for node in self.env.cluster.list_nodes():
+            if node not in self.ram_usage:
+                self.ram_usage[node] = {}
+            self.ram_usage[node][self.env.now] = node.allocatable.memory
+            
+            if node not in self.cpu_usage:
+                self.cpu_usage[node] = {}
+            self.cpu_usage[node][self.env.now] = node.allocatable.cpu_millis
+            
+            # logger.critical(f"RAM usage for {node} at {self.env.now} updated to {node.allocatable.memory}MB and {node.allocatable.cpu_millis}CPU.")
+                
+        
         
 class FunctionMonitor:
     """

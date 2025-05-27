@@ -180,7 +180,11 @@ class IkukantaiSystem(FaasSystem):
     def invoke(self, request: FunctionRequest, source_node: str):
         # TODO: how to return a FunctionResponse?
         logger.debug('invoking function %s', request.name)
-
+        if request not in self.mainmonitor.timestamp:
+            self.mainmonitor.timestamp[request] = {}
+            
+        self.mainmonitor.timestamp[request]["t1"] = self.env.now
+        
         if request.name not in self.functions_deployments.keys():
             logger.warning('invoking non-existing function %s', request.name)
             return
@@ -216,7 +220,7 @@ class IkukantaiSystem(FaasSystem):
         logger.debug('dispatching request %s:%d to %s', request.name, request.request_id, replica.node.name)
 
         t_start = self.env.now
-        yield from simulate_function_invocation(self.env, replica, request, source_node, coldstart_time)
+        yield from simulate_function_invocation(self.env, self.mainmonitor, replica, request, source_node, coldstart_time)
 
         t_end = self.env.now
 
@@ -534,10 +538,11 @@ def old_simulate_function_invocation(env: Environment, replica: FunctionReplica,
     yield from replica.simulator.invoke(env, replica, request)
     env.metrics.log_stop_exec(request, replica)
     
-def simulate_function_invocation(env: Environment, replica: FunctionReplica, request: FunctionRequest, source_node: str, coldstart_time):
-    if coldstart_time < Config.time_out:
+def simulate_function_invocation(env: Environment, mainmonitor: MainMonitor, replica: FunctionReplica, request: FunctionRequest, source_node: str, coldstart_time):
+    if coldstart_time <= Config.time_out:
         env.metrics.log_start_exec(request, replica)
-        yield from replica.simulator.invoke(env, replica, request, source_node)
+        # yield from replica.simulator.invoke(env, replica, request, source_node)
+        yield from replica.simulator.invoke(env, mainmonitor, source_node, replica, request)
         env.metrics.log_stop_exec(request, replica)
     else:
         # Drop request

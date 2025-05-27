@@ -4,7 +4,8 @@ from typing import Dict
 from logger_config.logger_config import setup_logger
 from setup.config import Config
 
-import random
+from ikukantai.statemonitor.arch import MainMonitor
+
 import simpy
 
 import sim.docker as docker
@@ -58,14 +59,26 @@ class MyFunctionSimulator(FunctionSimulator):
         self.concurrent_request[replica] = simpy.Resource(env, capacity=Config.concurrent_request)
         yield env.timeout(0)
 
-    def invoke(self, env: Environment, replica: FunctionReplica, request: FunctionRequest, source_node: str):
+    def invoke(self, env: Environment, mainmonitor: MainMonitor, source_node: str, replica: FunctionReplica, request: FunctionRequest):
         # you would probably either create one simulator per function, or use a generalized simulator, this is just
         # to demonstrate how the simulators are used to encapsulate simulator behavior.
-
+        
+        # Drop request if pod alreary have request
+        if self.concurrent_request[replica].count > 0:
+            logger.warning(f"[simtime={env.now}] request dropped {request}") # t_drop
+            mainmonitor.timestamp[request]["t_drop"] = env.now
+            mainmonitor.timestamp[request]["t_2"] = env.now
+            mainmonitor.timestamp[request]["t_3"] = -1
+            mainmonitor.timestamp[request]["t_4"] = -1
+            return
+        
+        mainmonitor.timestamp[request]["t_drop"] = -1
+        mainmonitor.timestamp[request]["t2"] = env.now
         token = self.concurrent_request[replica].request()
         t_wait_start = env.now
         yield token
         t_wait_end = env.now
+        mainmonitor.timestamp[request]["t2"] = env.now
         
         logger.info('[simtime=%.2f] invoking function %s from node %s to node %s', env.now, request, source_node, replica.node.name)
 
@@ -77,29 +90,31 @@ class MyFunctionSimulator(FunctionSimulator):
         node.current_requests.add(request) # Manage cocurrent request in one node
         
         
-        if replica.function.name == 'python-pi':
-            if replica.node.name.startswith('rpi3'):  # those are nodes we created in basic.example_topology()
-                yield env.timeout(20)  # invoking this function takes 20 seconds on a raspberry pi
-                logger.critical(f'1, {request}')
-            else:
-                yield env.timeout(2)  # invoking this function takes 2 seconds on all other nodes in the cluster
-                logger.critical(f'2, {request}')
+        # if replica.function.name == 'python-pi':
+        #     if replica.node.name.startswith('rpi3'):  # those are nodes we created in basic.example_topology()
+        #         yield env.timeout(20)  # invoking this function takes 20 seconds on a raspberry pi
+        #         logger.critical(f'1, {request}')
+        #     else:
+        #         yield env.timeout(2)  # invoking this function takes 2 seconds on all other nodes in the cluster
+        #         logger.critical(f'2, {request}')
             
-        elif replica.function.name == 'resnet50-inference':
-            yield env.timeout(0.5)  # invoking this function takes 500 ms
-            logger.critical(f'3, {request}')
-        else:
+        # elif replica.function.name == 'resnet50-inference':
+        #     yield env.timeout(0.5)  # invoking this function takes 500 ms
+        #     logger.critical(f'3, {request}')
+        # else:
+        #     yield env.timeout(0)
+        #     logger.critical(f'4, {request}')
+        if replica.function.name == 'app1':
             yield env.timeout(0)
-            logger.critical(f'4, {request}')
             
-            
-
         # also, you have to release them at the end
         env.resource_state.remove_resource(replica, 'cpu', cpu_millis)
         node.current_requests.remove(request)
         logger.warning('[endsimtime=%.2f] END invoking function %s from node %s to node %s', env.now, request, source_node, replica.node.name)
         
-        self.concurrent_request[replica].release(token)
+        self.concurrent_request[replica].release(token) 
+        
+        mainmonitor.timestamp[request]["t4"] = env.now
 
     def teardown(self, env: Environment, replica: FunctionReplica):
         yield env.timeout(0)
