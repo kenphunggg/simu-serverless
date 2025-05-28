@@ -1,84 +1,115 @@
-faas-sim: A trace-driven Function-as-a-Service simulator
-========================================================
+# simu-serverless: A trace-driven Function-as-a-Service simulator
+In this work, we defines distinct operational states for Kubernetes pods, characterized by differential CPU and RAM consumption profiles specific to each state.
 
-Faas-sim is a powerful trace-driven simulation framework to simulate container-based function-as-a-service platforms.
-It can be used to develop, and evaluate the performance of operational strategies for such systems, like scheduling, autoscaling, load balancing, and others.
-faas-sim was developed at the [Distributed Systems Group](https://dsg.tuwien.ac.at) at TU Wien as part of a larger research effort surrounding serverless edge computing systems.
+# State architecture
+The `simu-serverless` simulation framework defines distinct operational states for Kubernetes pods, as previously outlined. For each of these defined states, Application Programming Interfaces (APIs) are provided to enable more formal and precise control over pod statuses.\
+All functionalities pertaining to the manipulation of pod states are implemented under `./ikukantai/system/scheduler/autoscaler.py`.
 
-High-level architecture
------------------------
+<img alt = "state_arch" width="700px" src="./doc/figures/state-arch.drawio.png"><br/>
 
-faas-sim is based on the [SimPy](https://simpy.readthedocs.io) discrete-event simulation framework.
-It uses [Ether](https://github.com/edgerun/ether) as network simulation layer, and to create cluster configurations and network topologies.
-By default, it uses the [Skippy](https://github.com/edgerun/skippy-core) scheduling system for resource scheduling,
-but schedulers, autoscalers, and load-balancers can be plugged in by the user.
-faas-sim is trace-driven, and relies on profiling data from workloads and devices to simulate function execution.
-It comes pre-packaged with traces from several common computing devices and representative cluster workloads.
-The following figure shows a high-level overview:
+> Pod state transitions are restricted: A pod can only move to a directly subsequent state or a predefined alternative state. For example, a pod currently in the `warmdisk` state may only transition to the `warm` state or the `cold` state, and cannot transition directly to the `null` state.
 
-<img alt="architecture-overview" width="700px" src="https://raw.github.com/edgerun/faas-sim/master/doc/figures/architecture-overview.png">
+## Null state
+The starting assumption is that all services have been set up in the simulated cluster. In the `null` state, this indicates there is no actual pod, though its service is still defined. 
+```python
+# API to change a pod to *null* state
+yield env.process(
+   StateAPI.to_null(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1')
+)
+```
 
-Run examples
-------------
+## Cold state
+In the `cold` state, an identifier is assigned to each pod. This identifier serves as an abstract representation, indicating the pod's existence to the system.
+```python
+# API to change a pod to *cold* state
+yield env.process(
+   StateAPI.to_cold(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1')
+)
+```
 
-You can run the examples we provide in https://github.com/edgerun/faas-sim/tree/master/examples by first creating a virtual environment and installing the necessary dependencies.
+## Warmdisk
+In the `warmdisk` state, image is availabled for deployment of pod in next states.
+```python
+# API to change a pod to *warmdisk* state
+yield env.process(
+   StateAPI.to_warmdisk(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1', node=chosen_node)
+)
+```
+`chosen_node` is taken as below
+```python
+node_idx = 3
+chosen_node: Node = self.env.cluster.list_nodes()[node_idx]
+```
 
-    make venv
-    source .venv/bin/activate
-    python -m examples.<example>.main
+## Warm
+In the `warm` state, a physical pod is deployed into the system and wait for incoming request.
+```python
+# API to change a pod to *warm* state
+yield env.process(
+   StateAPI.to_warm(env=self.env, main_monitor=self.main_monitor, function_name=self.fn_name, pod_name='1', node=chosen_node)  
+)
+```
 
-Where example refers to the specific example package.
-Check out the examples [README](https://github.com/edgerun/faas-sim/tree/master/examples/README.md) for more information.
+## Active
+In the `active` state, the pod is receiving and processing requests. In this work, we focused on how pod scaling, not focus on loadbalancing the requests into pods.
 
-Run notebooks
--------------
+# System information collector
+All information about system (needed timestamp, CPU, RAM usages) is collected through `self.main_monitor`
 
-Notebooks are located in `notebooks`.
-You need to install `faas-sim` in editable state to run the notebooks.
-Inside `notebooks` import modules from `sim`.
+## CPU and RAM usages
+CPU and RAM usages is collected every 2 seconds (0, 2, 4, ...) and can be accessed as below.
+```python 
+# CPU and RAM usage is a store in a dict
+self.main_monitor.cpu_usage
+self.main_monitor.ram_usage
 
-To install the project (assuming you already created and activated a virtual environment via `make venv`):
+# You can access CPU usage in specific node by
+self.main_monitor.cpu_usage["node_name"] # This will return a dict: *timestamp: cpu_usage*
+self.main_monitor.ram_usage["node_name"] # This will return a dict: *timestamp: ram_usage*
+```
 
-      pip install -e .
-      jupyter notebook
+## Timestamp
+Timestamp collection is described as below. All about request timestamp is collected through `self.main_monitor`.
+<img alt='timestamp description' width="700px" src="./doc/figures/timestamp.drawio.png"><br/>
 
-Documentation
--------------
+```python
+# Timestamp is store through a dict
+self.main_monitor.timestamp
 
-You can find the documentation at https://edgerun.github.io/faas-sim/
+# You can access timestamp each request by
+# *request_x* is an instance of class *FunctionRequest*
+self.main_monitor.timestamp[<request_x>]["t_1"] # Accessing timestamp "t1" of request request_x. 
 
-Maintainers
-------------
+# FunctionRequest is a class that describe a simulated request in our simulation
+class FunctionRequest:
+    request_id: int
+    name: str # Function name
+    size: float = None
 
-* [Thomas Rausch](https://github.com/thrau)
-* [Philipp Raith](https://github.com/phip123)
+    id_generator = counter()
 
-Development
------------
+    def __init__(self, name, size=None) -> None:
+        super().__init__()
+        self.name = name
+        self.size = size
+        self.request_id = next(self.id_generator)
 
-The simulator has seen a major refactoring in the branch `/feature/adapt-to-galileo-faas` and aims to be compatible with the other galileo projects.
-Only this branch is in active development.
+    def __str__(self) -> str:
+        return 'FunctionRequest(%d, %s, %s)' % (self.request_id, self.name, self.size)
 
-Related publications
---------------------
+    def __repr__(self):
+        return self.__str__()
+```
 
-1. Raith, P., Rausch, T., Furutanpey, A., & Dustdar, S. (2023).
-   **faas‐sim: A trace‐driven simulation framework for serverless edge computing platforms.**
-   In *Software: Practice and Experience*. Wiley Online Library.
-   [[Paper](https://onlinelibrary.wiley.com/doi/pdf/10.1002/spe.3277)]
-1. Raith, P. (2021)
-   Container Scheduling on Heterogeneous Clusters using Machine Learning-based Workload Characterization.
-   *Diploma Thesis*. TU Wien.
-   [[Thesis](https://repositum.tuwien.at/handle/20.500.12708/16871)]
-1. Rausch, T., Lachner, C., Frangoudis, P. A., Raith, P., & Dustdar, S. (2020).
-   Synthesizing Plausible Infrastructure Configurations for Evaluating Edge Computing Systems.
-   In *3rd USENIX Workshop on Hot Topics in Edge Computing (HotEdge 20)*. USENIX Association.
-   [[Paper](https://www.usenix.org/conference/hotedge20/presentation/rausch)]
-1. Rausch, T., Rashed, A., & Dustdar, S. (2020)
-   Optimized container scheduling for data-intensive serverless edge computing.
-   In *Future Generation Computer Systems.*.
-   [[Paper](https://www.sciencedirect.com/science/article/pii/S0167739X2030399X)]
-1. Rashed, A. (2020)
-   Optimized Container Scheduling for Serverless Edge Computing.
-   *Diploma Thesis*. TU Wien.
-   [[Thesis](http://repositum.tuwien.ac.at/obvutwhs/content/titleinfo/4671607)]
+# Run simulation
+
+You can run the simulation we provide in `./ikukantai` by first creating a virtual environment and installing the necessary dependencies.
+
+```bash
+make venv
+source .venv/bin/activate
+cd ikukantai
+python main.py
+```
+
+
