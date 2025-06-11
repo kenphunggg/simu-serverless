@@ -22,3 +22,7 @@
 - TODO when set up simulation:
 --- Set CPU-RAM for coldstart a pod, when proccessing a request\
 --- Set up Benchmark
+
+
+8JUN25
+- resources between states
