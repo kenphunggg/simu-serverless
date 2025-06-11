@@ -1,4 +1,5 @@
-VENV_BIN = python3 -m venv
+PYTHON = python3.8
+VENV_BIN = $(PYTHON) -m venv
 
 VENV_DIR ?= .venv
 
@@ -13,8 +14,9 @@ venv: $(VENV_DIR)/bin/activate
 
 $(VENV_DIR)/bin/activate: requirements.txt requirements-dev.txt
 	test -d .venv || $(VENV_BIN) .venv
-	$(VENV_ACTIVATE); pip install -Ur requirements.txt
-	$(VENV_ACTIVATE); pip install -Ur requirements-dev.txt
+	$(VENV_ACTIVATE); $(PYTHON) -m pip install --upgrade pip 
+	$(VENV_ACTIVATE); $(PYTHON) -m pip install -Ur requirements.txt
+	$(VENV_ACTIVATE); $(PYTHON) -m pip install -Ur requirements-dev.txt
 	touch $(VENV_DIR)/bin/activate
 
 clean:
@@ -33,21 +35,21 @@ clean-dist: clean
 	rm -rf *.egg-info/
 
 build: venv
-	$(VENV_ACTIVATE); python setup.py build
+	$(VENV_ACTIVATE); $(PYTHON) setup.py build
 
 test: venv
-	$(VENV_ACTIVATE); python setup.py test
+	$(VENV_ACTIVATE); $(PYTHON) setup.py test
 
 pytest: venv
 	$(VENV_ACTIVATE); pytest --cov $(ROOT_DIR)
 
 dist: venv
-	$(VENV_ACTIVATE); python setup.py sdist bdist_wheel
+	$(VENV_ACTIVATE); $(PYTHON) setup.py sdist bdist_wheel
 
 install: venv
-	$(VENV_ACTIVATE); python setup.py install
+	$(VENV_ACTIVATE); $(PYTHON) setup.py install
 
 deploy: venv test dist
-	$(VENV_ACTIVATE); pip install --upgrade twine; twine upload dist/*
+	$(VENV_ACTIVATE); $(PYTHON) -m pip install --upgrade twine; twine upload dist/*
 
 .PHONY: clean clean-dist clean-venv
